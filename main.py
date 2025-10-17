@@ -14,7 +14,7 @@ from typing import Optional
 from models.health import Health
 from models.connection import ConnectionCreate, ConnectionRead, ConnectionUpdate
 from models.message import MessageCreate, MessageRead, MessageUpdate
-
+from models.sync import SyncCreate, SyncRead
 
 port = int(os.environ.get("FASTAPIPORT", 8000))
 
@@ -98,37 +98,65 @@ async def refresh_connection(connection_id: UUID):
     raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
 
 # -----------------------------------------------------------------------------
-# Connection Endpoints
+# Message Endpoints
 # -----------------------------------------------------------------------------
 
 # GET Messages (list)
 @app.get("/messages", response_model=List[MessageRead], status_code=200)
-def list_messages(limit: int = 50):
+async def list_messages(limit: int = 50):
     """Returns list of all messages with an optional limit"""
     raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
 
 # GET Messages (specific)
 @app.get("/messages/{message_id}", response_model=MessageRead, status_code=200)
-def get_message(message_id: UUID):
+async def get_message(message_id: UUID):
     """Gets a specific message"""
     raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
 
 # POST new Message
 @app.post("/messages", response_model=MessageRead, status_code=201)
-def create_message(message: MessageCreate):
+async def create_message(message: MessageCreate):
     """Create/send a message"""
     raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
 
 # PATCH existing Message (if supported)
 @app.patch("/messages/{message_id}", response_model=MessageRead, status_code=200)
-def update_message(message_id: UUID, message: MessageUpdate):
+async def update_message(message_id: UUID, message: MessageUpdate):
     """Update an existing message (if supported)"""
     raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
 
 # DELETE Message
 @app.delete("/messages/{message_id}", status_code=204)
-def delete_message(message_id: UUID):
+async def delete_message(message_id: UUID):
     """Deletes a specific message from our service and propogates via API for external service"""
+    raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
+
+# -----------------------------------------------------------------------------
+# Sync Endpoints
+# -----------------------------------------------------------------------------
+
+# GET sync job (list)
+@app.get("/syncs", response_model=List[SyncRead], status_code=200)
+async def list_syncs():
+    """Lists all sync jobs. can filter later by active/complete"""
+    raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
+
+# GET sync job (specific)
+@app.get("/syncs/{sync_id}", response_model=SyncRead, status_code=200)
+async def get_sync(sync_id: UUID):
+    """Gets details/log of a specific sync job"""
+    raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
+
+# POST new manual sync job
+@app.post("/syncs", response_model=SyncRead, status_code=201)
+async def create_sync(sync: SyncCreate):
+    """Creates a new sync job"""
+    raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
+
+# DELETE sync job
+@app.delete("/syncs/{sync_id}", status_code=204)
+async def delete_sync(sync_id: UUID):
+    """Deletes a specific sync job"""
     raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
 
 # -----------------------------------------------------------------------------
