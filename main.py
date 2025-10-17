@@ -164,7 +164,7 @@ async def delete_sync(sync_id: UUID):
 # -----------------------------------------------------------------------------
 @app.get("/")
 def root():
-    return {"message": "Welcome to the Product/Company API. See /docs for OpenAPI UI."}
+    return {"message": "Welcome to the Integrations API. See /docs for OpenAPI UI."}
 
 # -----------------------------------------------------------------------------
 # Entrypoint for `python main.py`
