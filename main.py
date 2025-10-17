@@ -12,7 +12,8 @@ from fastapi import Query, Path
 from typing import Optional
 
 from models.health import Health
-from models.connection import ConnectionBase, ConnectionCreate, ConnectionRead, ConnectionUpdate
+from models.connection import ConnectionCreate, ConnectionRead, ConnectionUpdate
+from models.message import MessageCreate, MessageRead, MessageUpdate
 
 
 port = int(os.environ.get("FASTAPIPORT", 8000))
@@ -94,6 +95,40 @@ async def test_connection(connection_id: UUID):
 @app.post("/connections/{connection_id}/refresh", response_model=ConnectionRead, status_code=200)
 async def refresh_connection(connection_id: UUID):
     """Refresh authentication tokens for the connection"""
+    raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
+
+# -----------------------------------------------------------------------------
+# Connection Endpoints
+# -----------------------------------------------------------------------------
+
+# GET Messages (list)
+@app.get("/messages", response_model=List[MessageRead], status_code=200)
+def list_messages(limit: int = 50):
+    """Returns list of all messages with an optional limit"""
+    raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
+
+# GET Messages (specific)
+@app.get("/messages/{message_id}", response_model=MessageRead, status_code=200)
+def get_message(message_id: UUID):
+    """Gets a specific message"""
+    raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
+
+# POST new Message
+@app.post("/messages", response_model=MessageRead, status_code=201)
+def create_message(message: MessageCreate):
+    """Create/send a message"""
+    raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
+
+# PATCH existing Message (if supported)
+@app.patch("/messages/{message_id}", response_model=MessageRead, status_code=200)
+def update_message(message_id: UUID, message: MessageUpdate):
+    """Update an existing message (if supported)"""
+    raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
+
+# DELETE Message
+@app.delete("/messages/{message_id}", status_code=204)
+def delete_message(message_id: UUID):
+    """Deletes a specific message from our service and propogates via API for external service"""
     raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
 
 # -----------------------------------------------------------------------------
