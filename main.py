@@ -12,6 +12,8 @@ from fastapi import Query, Path
 from typing import Optional
 
 from models.health import Health
+from models.connection import ConnectionBase, ConnectionCreate, ConnectionRead, ConnectionUpdate
+
 
 port = int(os.environ.get("FASTAPIPORT", 8000))
 
@@ -48,6 +50,51 @@ def get_health_with_path(
 ):
     return make_health(echo=echo, path_echo=path_echo)
 
+# -----------------------------------------------------------------------------
+# Connection Endpoints
+# -----------------------------------------------------------------------------
+
+# GET Connections (list)
+@app.get("/connections", response_model=List[ConnectionRead], status_code=200)
+async def list_connections():
+    """Get list of connections, can be filtered (to be implemented)"""
+    raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
+
+# GET Connection specific
+@app.get("/connections/{connection_id}", response_model=ConnectionRead, status_code=200)
+async def get_connection(connection_id: UUID):
+    """Get information about a specific connection"""
+    raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
+
+# POST new Connection
+@app.post("/connections", response_model=ConnectionRead, status_code=201)
+async def create_connection(connection: ConnectionCreate):
+    """Creates a new connection"""
+    raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
+
+# PUT/PATCH Connection update
+@app.patch("/connections/{connection_id}", response_model=ConnectionRead, status_code=200)
+async def update_connection(connection_id: UUID, connection: ConnectionUpdate):
+    """Updates the details of a connection"""
+    raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
+
+# DELETE Connection Specific
+@app.delete("/connections/{connection_id}", status_code=204)
+async def delete_connection(connection_id: UUID):
+    """Deletes a specific connection if it exists"""
+    raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
+
+# Test Connection
+@app.post("/connections/{connection_id}/test", status_code=200)
+async def test_connection(connection_id: UUID):
+    """Test if the connection is valid and working"""
+    raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
+
+# Refresh/reconnect
+@app.post("/connections/{connection_id}/refresh", response_model=ConnectionRead, status_code=200)
+async def refresh_connection(connection_id: UUID):
+    """Refresh authentication tokens for the connection"""
+    raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
 
 # -----------------------------------------------------------------------------
 # Root
