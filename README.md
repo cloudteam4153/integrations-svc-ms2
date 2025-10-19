@@ -4,10 +4,14 @@ Handles integrating external services with our application framework. Manages th
 
 Project for COMS4153, Fall 2025 Cloud Team
 
+## Live Link Hosted on Google Cloud Platform VM 
+
+http://35.188.76.100:8000/docs
+
 ## Get Started
 
 ### Prerequisites
-- Python 3.13+
+- Python 3.12+
 
 1. Clone microservice
 ```bash
