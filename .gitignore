@@ -1,3 +1,6 @@
 __pycache__
 .venv
 .DS_Store
+.idea
+.env*
+client_secret_google.json

@@ -12,9 +12,15 @@ from fastapi import Query, Path
 from typing import Optional
 
 from models.health import Health
-from models.connection import ConnectionCreate, ConnectionRead, ConnectionUpdate
+from routers import connections, oauth
 from models.message import MessageCreate, MessageRead, MessageUpdate
 from models.sync import SyncCreate, SyncRead
+from models.user import User, UserCreate, UserRead, UserUpdate
+from services.database import get_db, init_db
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from fastapi import Depends
+from contextlib import asynccontextmanager
 
 port = int(os.environ.get("FASTAPIPORT", 8000))
 
@@ -52,50 +58,11 @@ def get_health_with_path(
     return make_health(echo=echo, path_echo=path_echo)
 
 # -----------------------------------------------------------------------------
-# Connection Endpoints
+# Connections endpoints
 # -----------------------------------------------------------------------------
 
-# GET Connections (list)
-@app.get("/connections", response_model=List[ConnectionRead], status_code=200)
-async def list_connections():
-    """Get list of connections, can be filtered (to be implemented)"""
-    raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
-
-# GET Connection specific
-@app.get("/connections/{connection_id}", response_model=ConnectionRead, status_code=200)
-async def get_connection(connection_id: UUID):
-    """Get information about a specific connection"""
-    raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
-
-# POST new Connection
-@app.post("/connections", response_model=ConnectionRead, status_code=201)
-async def create_connection(connection: ConnectionCreate):
-    """Creates a new connection"""
-    raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
-
-# PUT/PATCH Connection update
-@app.patch("/connections/{connection_id}", response_model=ConnectionRead, status_code=200)
-async def update_connection(connection_id: UUID, connection: ConnectionUpdate):
-    """Updates the details of a connection"""
-    raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
-
-# DELETE Connection Specific
-@app.delete("/connections/{connection_id}", status_code=204)
-async def delete_connection(connection_id: UUID):
-    """Deletes a specific connection if it exists"""
-    raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
-
-# Test Connection
-@app.post("/connections/{connection_id}/test", status_code=200)
-async def test_connection(connection_id: UUID):
-    """Test if the connection is valid and working"""
-    raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
-
-# Refresh/reconnect
-@app.post("/connections/{connection_id}/refresh", response_model=ConnectionRead, status_code=200)
-async def refresh_connection(connection_id: UUID):
-    """Refresh authentication tokens for the connection"""
-    raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
+app.include_router(router=connections.router)
+app.include_router(router=oauth.router)
 
 # -----------------------------------------------------------------------------
 # Message Endpoints
@@ -158,6 +125,62 @@ async def create_sync(sync: SyncCreate):
 async def delete_sync(sync_id: UUID):
     """Deletes a specific sync job"""
     raise HTTPException(status_code=501, detail="NOT IMPLEMENTED")
+
+# -----------------------------------------------------------------------------
+# User Endpoints (Test)
+# -----------------------------------------------------------------------------
+
+@app.post("/users", response_model=UserRead, status_code=201)
+async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
+    db_user = User(last_name=user.last_name, 
+                   first_name=user.first_name,
+                   email=user.email)
+    db.add(db_user)
+    try:
+        await db.commit()
+        await db.refresh(db_user)
+        return db_user
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/users", response_model=List[UserRead])
+async def list_users(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).offset(skip).limit(limit))
+    return result.scalars().all()
+
+@app.get("/users/{user_id}", response_model=UserRead)
+async def get_user(user_id: UUID, db: AsyncSession = Depends(get_db)):
+    user = await db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+@app.put("/users/{user_id}", response_model=UserRead)
+async def update_user(user_id: UUID, user_update: UserUpdate, db: AsyncSession = Depends(get_db)):
+    user = await db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user_update.last_name is not None:
+        user.last_name = user_update.last_name
+    if user_update.first_name is not None:
+        user.first_name = user_update.first_name
+    if user_update.email is not None:
+        user.email = user_update.email
+    
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+@app.delete("/users/{user_id}", status_code=204)
+async def delete_user(user_id: UUID, db: AsyncSession = Depends(get_db)):
+    user = await db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    await db.delete(user)
+    await db.commit()
 
 # -----------------------------------------------------------------------------
 # Root
