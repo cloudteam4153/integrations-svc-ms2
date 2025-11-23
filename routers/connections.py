@@ -13,11 +13,12 @@ from models.connection import (
     ConnectionRead, 
     ConnectionUpdate
 )
-
+from config.settings import settings
 from models.connection import ConnectionStatus
 from models.user import UserRead
-from models.oauth import OAuthStateCreate
+from models.oauth import OAuth
 from utils.auth import validate_session
+from models.oauth import OAuthProvider
 
 
 
@@ -31,52 +32,49 @@ router = APIRouter(
 # -----------------------------------------------------------------------------
 
 # POST new Connection
-@router.post("/", response_model=RedirectResponse, status_code=201)
+@router.post("/", status_code=201)
 async def create_connection(
-    conn_request: ConnectionInitiateRequest,
+    # session_token: UUID,
+    
     db: AsyncSession = Depends(get_db),
-    current_user: UserRead = Depends(validate_session)
+    
 ):
+    # current_user: UserRead = Depends(validate_session)
+    user_info = validate_session(session_token="")
+
     # Create connection record in DB
     conn = Connection(
-        user_id=current_user.id,
-        provider=conn_request.provider,
+        user_id=user_info.id,
+        provider=OAuthProvider.GMAIL,
         status=ConnectionStatus.PENDING
     )
     db.add(conn)
     await db.flush()
 
-    scopes = [
-        'https://www.googleapis.com/auth/userinfo.email',
-        'https://www.googleapis.com/auth/gmail.readonly',
-        'https://www.googleapis.com/auth/gmail.modify'
-    ]
-
     # Build Auth URL
     flow = Flow.from_client_secrets_file(
-        'client_secret_google.json',
-        scopes=scopes
+        settings.GOOGLE_CLIENT_SECRETS_FILE,
+        scopes=settings.GMAIL_OAUTH_SCOPES
     )
-    flow.redirect_uri = "http://localhost:8000/oauth/google/callback"
+    flow.redirect_uri = settings.GOOGLE_REDIRECT_URI
     
     authorization_url, state = flow.authorization_url(
         access_type="offline",
     )
 
     # Store OAuth temp record
-    oauth_state = OAuthStateCreate(
+    oauth_state = OAuth(
         state_token=state,
         connection_id=conn.id,
-        user_id=current_user.id,
-        provider=conn_request.provider,
-        expires_at=datetime.now() + timedelta(minutes=5),
-    
+        user_id=user_info.id,
+        provider=OAuthProvider.GMAIL,
+        expires_at=datetime.now() + timedelta(minutes=5)
     )
     db.add(oauth_state)
     await db.commit()
 
     # Return to frontend
-    return RedirectResponse(url=authorization_url)
+    return {"authorization_url": authorization_url, "connection_id": str(conn.id)}
 
 
 
@@ -92,7 +90,7 @@ async def update_connection(connection_id: UUID, connection: ConnectionUpdate):
 # -----------------------------------------------------------------------------
 
 # GET Connections (list)
-@router.get("/", response_model=[ConnectionRead], status_code=200)
+@router.get("/", response_model=list[ConnectionRead], status_code=200)
 async def list_connections(
     db: AsyncSession = Depends(get_db),
     current_user = Depends(validate_session),

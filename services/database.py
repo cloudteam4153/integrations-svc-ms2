@@ -2,31 +2,10 @@ from __future__ import annotations
 
 from typing import AsyncGenerator
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
-# -----------------------------------------------------------------------------
-# Settings
-# -----------------------------------------------------------------------------
-class Settings(BaseSettings):
-    """
-    Application settings managed by Pydantic.
-    Reads from environment variables and/or .env file.
-    """
-    DATABASE_URL: str
-
-    # Config to read from .env file if available
-    model_config = SettingsConfigDict(
-        env_file=".env", 
-        env_file_encoding="utf-8",
-        extra="ignore"
-        )
-
-settings = Settings() # type: ignore
-if not settings.DATABASE_URL:
-    raise RuntimeError("DATABASE_URL is not set")
-
+from config.settings import settings
 
 # -----------------------------------------------------------------------------
 # Database Engine

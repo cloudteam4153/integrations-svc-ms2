@@ -9,9 +9,11 @@ from sqlalchemy import String, Boolean, DateTime, ForeignKey, Enum as SQLEnum, I
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from pydantic import BaseModel
 
+
 class OAuthProvider(PyEnum):
     """Supported OAuth providers"""
     GMAIL = "gmail"
+    GOOGLE = "google"
     SLACK = "slack"
     OUTLOOK = "outlook"
 

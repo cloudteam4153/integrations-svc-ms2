@@ -50,13 +50,11 @@ class Connection(Base):
     )
 
     provider_account_id: Mapped[str] = mapped_column(String, nullable=True)
-    provider_account_email: Mapped[str] = mapped_column(String, nullable=True)
 
     # access_token should be secured/encrypted
     access_token: Mapped[str] = mapped_column(Text, nullable=True)
     refresh_token: Mapped[str] = mapped_column(Text, nullable=True)
-    token_type: Mapped[str] = mapped_column(String, default="bearer")
-    scope: Mapped[list[str]] = mapped_column(JSON, nullable=True)
+    scopes: Mapped[list[str]] = mapped_column(JSON, nullable=True)
     access_token_expiry: Mapped[datetime] = mapped_column(DateTime, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
@@ -83,7 +81,6 @@ class ConnectionBase(BaseModel):
     """Base model definition for an external resource connection."""
     provider: str
     provider_account_id: Optional[str] = None
-    provider_account_email: Optional[str] = None
 
 class ConnectionInitiateRequest(BaseModel):
     """Internal model for creating a connection from an OAuth flow"""

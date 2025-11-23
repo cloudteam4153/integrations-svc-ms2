@@ -20,7 +20,7 @@ class User(Base):
     first_name: Mapped[str] = mapped_column(String(255))
     
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
-    hashed_password: Mapped[str] = mapped_column(String, nullable=False)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
@@ -36,14 +36,14 @@ class UserBase(BaseModel):
     email: str
 
 class UserCreate(UserBase):
-    password: str
+    plaintext_password: str
 
 class UserUpdate(BaseModel):
     id: UUID
     first_name: str | None = None
     last_name: str | None = None
     email: str | None = None
-    password: str | None = None
+    plaintext_password: str | None = None
 
 class UserRead(UserBase):
     id: UUID
