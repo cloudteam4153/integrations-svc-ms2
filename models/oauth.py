@@ -7,7 +7,7 @@ from typing import Optional
 from services.database import Base
 from sqlalchemy import String, Boolean, DateTime, ForeignKey, Enum as SQLEnum, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class OAuthProvider(PyEnum):
@@ -22,10 +22,7 @@ class OAuthProvider(PyEnum):
 # -----------------------------------------------------------------------------
 class OAuth(Base):
     """
-    Temporary storage for OAuth state tokens.
-    Used to prevent CSRF attacks and link callback to original request.
-    
-    These records are short-lived (5 minutes) and deleted after use.
+    Temporary storage for OAuth state tokens. (~5 mins)
     """
     __tablename__ = "oauth_states"
     
@@ -42,10 +39,60 @@ class OAuth(Base):
         Index('ix_oauth_states_expires_at', 'expires_at'),  # For cleanup queries
     )
 
+# -----------------------------------------------------------------------------
+# Pydantic Schemas
+# -----------------------------------------------------------------------------
+
 class OAuthStateCreate(BaseModel):
     """Pydantic model for creating OAuth state records"""
-    state_token: str
-    connection_id: UUID
-    user_id: UUID
-    provider: str
-    expires_at: datetime
+    state_token: str = Field(
+        ...,
+        description="Unique CSRF token to prevent OAuth attacks",
+        min_length=16,
+        max_length=64
+    )
+    connection_id: UUID = Field(
+        ...,
+        description="ID of the connection this OAuth state is for"
+    )
+    user_id: UUID = Field(
+        ...,
+        description="ID of the user initiating the OAuth flow"
+    )
+    provider: OAuthProvider = Field(
+        ...,
+        description="OAuth provider for this authentication flow"
+    )
+    expires_at: datetime = Field(
+        ...,
+        description="When this OAuth state token expires (typically 5 minutes)"
+    )
+
+class OAuthStateRead(BaseModel):
+    """Pydantic model for reading OAuth state records"""
+    state_token: str = Field(
+        ...,
+        description="Unique CSRF token used for OAuth verification"
+    )
+    connection_id: UUID = Field(
+        ...,
+        description="ID of the associated connection"
+    )
+    user_id: UUID = Field(
+        ...,
+        description="ID of the user who initiated this OAuth flow"
+    )
+    provider: OAuthProvider = Field(
+        ...,
+        description="OAuth provider name"
+    )
+    created_at: datetime = Field(
+        ...,
+        description="When this OAuth state was created"
+    )
+    expires_at: datetime = Field(
+        ...,
+        description="When this OAuth state expires"
+    )
+    
+    model_config = ConfigDict(from_attributes=True)

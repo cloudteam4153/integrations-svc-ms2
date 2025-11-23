@@ -54,7 +54,7 @@ async def create_user(
 # GET Endpoints
 # -----------------------------------------------------------------------------
 
-@router.get("/", response_model=list[UserRead])
+@router.get("/", response_model=list[UserRead], status_code=200)
 async def list_users(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
@@ -101,9 +101,12 @@ async def list_users(
     query = query.offset(skip).limit(limit)
     
     result = await db.execute(query)
-    return result.scalars().all()
+    users = result.scalars().all()
+    
+    return [UserRead.model_validate(user) for user in users]
+    
 
-@router.get("/{user_id}", response_model=UserRead)
+@router.get("/{user_id}", response_model=UserRead, status_code=200)
 async def get_user(
     user_id: UUID,
     include_inactive: bool = Query(False, description="Include inactive users in search"),
@@ -119,13 +122,13 @@ async def get_user(
     
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    return user
+    return UserRead.model_validate(user)
 
 # -----------------------------------------------------------------------------
-# PUT Endpoint
+# PATCH Endpoint
 # -----------------------------------------------------------------------------
 
-@router.put("/{user_id}", response_model=UserRead)
+@router.patch("/{user_id}", response_model=UserRead, status_code=200)
 async def update_user(
     user_id: UUID,
     user_update: UserUpdate,
@@ -156,7 +159,7 @@ async def update_user(
     
     await db.commit()
     await db.refresh(user)
-    return user
+    return UserRead.model_validate(user)
 
 # -----------------------------------------------------------------------------
 # DELETE Endpoint

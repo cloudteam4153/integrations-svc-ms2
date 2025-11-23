@@ -21,10 +21,11 @@ from models.connection import Connection, ConnectionStatus
 
 router = APIRouter(
     prefix="/oauth/callback",
-    tags=["OAuth"],
+    tags=["OAuth (Internal Use Only)"],
 )
 
-@router.get("/google")
+# Google Callback GET Endpoint (defined as per Google API spec; internal only)
+@router.get("/google", status_code=200)
 async def oauth_callback(
     code: str = Query(...),
     state: str = Query(...),

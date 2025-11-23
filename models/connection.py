@@ -73,20 +73,35 @@ class Connection(Base):
     last_error: Mapped[str] = mapped_column(Text, nullable=True)
 
 # -----------------------------------------------------------------------------
-# Connection Request and Response Models
+# Pydantic Models
 # -----------------------------------------------------------------------------
 
 
 class ConnectionBase(BaseModel):
     """Base model definition for an external resource connection."""
-    provider: str
-    provider_account_id: Optional[str] = None
+    provider: str = Field(
+        ...,
+        description="OAuth provider name (e.g., 'gmail', 'slack', 'outlook')"
+    )
+    provider_account_id: Optional[str] = Field(
+        None,
+        description="Account ID from the external provider"
+    )
 
 class ConnectionInitiateRequest(BaseModel):
     """Internal model for creating a connection from an OAuth flow"""
-    user_id: UUID
-    provider: str
-    status: ConnectionStatus = ConnectionStatus.PENDING
+    user_id: UUID = Field(
+        ...,
+        description="ID of the user who owns this connection"
+    )
+    provider: str = Field(
+        ...,
+        description="OAuth provider name to connect to"
+    )
+    status: ConnectionStatus = Field(
+        ConnectionStatus.PENDING,
+        description="Initial status of the connection"
+    )
 
 class ConnectionInitiateResponse(BaseModel):
     """Reponse model for redirect URL to OAuth provider"""
@@ -97,22 +112,64 @@ class ConnectionInitiateResponse(BaseModel):
 
 class ConnectionRead(ConnectionBase):
     """Read information about an external resource connection"""
-    id: UUID
-    user_id: UUID
-    is_active: bool
-    last_error: str | None = None
-    created_at: datetime
-    updated_at: datetime
-    access_token_expiry: datetime | None = None
+    id: UUID = Field(
+        ...,
+        description="Internal unique identifier for this connection"
+    )
+    user_id: UUID = Field(
+        ...,
+        description="ID of the user who owns this connection"
+    )
+    is_active: bool = Field(
+        ...,
+        description="Whether this connection is currently active and usable"
+    )
+    last_error: str | None = Field(
+        None,
+        description="Last error message if connection failed or encountered issues"
+    )
+    created_at: datetime = Field(
+        ...,
+        description="Timestamp when this connection was first created"
+    )
+    updated_at: datetime = Field(
+        ...,
+        description="Timestamp when this connection was last updated"
+    )
+    access_token_expiry: datetime | None = Field(
+        None,
+        description="When the access token expires (if applicable)"
+    )
     
     model_config = ConfigDict(from_attributes=True)
 
 class ConnectionUpdate(BaseModel):
     """Partial update of a connection; ID is taken from path"""
-    access_token: str | None = None
-    refresh_token: str | None = None
-    token_type: str | None = None
-    scope: list[str] | None = None
-    access_token_expiry: datetime | None = None
-    is_active: bool | None = None
-    last_error: str | None = None
+    access_token: str | None = Field(
+        None,
+        description="Updated encrypted access token from OAuth provider"
+    )
+    refresh_token: str | None = Field(
+        None,
+        description="Updated encrypted refresh token for token renewal"
+    )
+    token_type: str | None = Field(
+        None,
+        description="Type of token (usually 'bearer')"
+    )
+    scopes: list[str] | None = Field(
+        None,
+        description="Updated list of OAuth scopes granted for this connection"
+    )
+    access_token_expiry: datetime | None = Field(
+        None,
+        description="Updated expiration time for the access token"
+    )
+    is_active: bool | None = Field(
+        None,
+        description="Updated active status of this connection"
+    )
+    last_error: str | None = Field(
+        None,
+        description="Updated error message or None to clear errors"
+    )

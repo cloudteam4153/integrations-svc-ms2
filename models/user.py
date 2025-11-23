@@ -2,7 +2,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from uuid import UUID, uuid4
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import String, Boolean, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -31,24 +31,79 @@ class User(Base):
 # Pydantic Schemas
 # -----------------------------------------------------------------------------
 class UserBase(BaseModel):
-    first_name: str
-    last_name: str
-    email: str
+    first_name: str = Field(
+        ...,
+        min_length=1,
+        max_length=255,
+        description="User's first name"
+    )
+    last_name: str = Field(
+        ...,
+        min_length=1,
+        max_length=255,
+        description="User's last name"
+    )
+    email: str = Field(
+        ...,
+        max_length=255,
+        pattern=r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+        description="User's email address (must be unique and valid)"
+    )
 
 class UserCreate(UserBase):
-    plaintext_password: str
+    plaintext_password: str = Field(
+        ...,
+        min_length=8,
+        max_length=128,
+        description="User's password in plain text (will be hashed before storage)"
+    )
 
 class UserUpdate(BaseModel):
-    id: UUID
-    first_name: str | None = None
-    last_name: str | None = None
-    email: str | None = None
-    plaintext_password: str | None = None
+    # id: UUID = Field(
+    #     ...,
+    #     description="ID of the user to update (for validation purposes)"
+    # )
+    first_name: str | None = Field(
+        None,
+        min_length=1,
+        max_length=255,
+        description="Updated first name"
+    )
+    last_name: str | None = Field(
+        None,
+        min_length=1,
+        max_length=255,
+        description="Updated last name"
+    )
+    email: str | None = Field(
+        None,
+        max_length=255,
+        pattern=r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+        description="Updated email address (must be unique and valid)"
+    )
+    plaintext_password: str | None = Field(
+        None,
+        min_length=8,
+        max_length=128,
+        description="Updated password in plain text (will be hashed before storage)"
+    )
 
 class UserRead(UserBase):
-    id: UUID
-    is_active: bool
-    created_at: datetime
-    updated_at: datetime
+    id: UUID = Field(
+        ...,
+        description="Internal unique identifier for this user"
+    )
+    is_active: bool = Field(
+        ...,
+        description="Whether this user account is active and can log in"
+    )
+    created_at: datetime = Field(
+        ...,
+        description="Timestamp when this user account was created"
+    )
+    updated_at: datetime = Field(
+        ...,
+        description="Timestamp when this user account was last updated"
+    )
 
     model_config = ConfigDict(from_attributes=True)

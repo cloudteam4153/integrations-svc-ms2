@@ -12,7 +12,7 @@ from fastapi import Query, Path
 from typing import Optional
 
 from models.health import Health
-from routers import connections, oauth, users
+from routers import connections, oauth, users, messages, syncs
 
 from services.database import get_db, init_db
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -60,8 +60,8 @@ def get_health_with_path(
 # -----------------------------------------------------------------------------
 
 app.include_router(router=connections.router)
-# app.include_router(router=messages.router)
-# app.include_router(router=syncs.router)
+app.include_router(router=messages.router)
+app.include_router(router=syncs.router)
 
 # -----------------------------------------------------------------------------
 # Routers to internal service resources
