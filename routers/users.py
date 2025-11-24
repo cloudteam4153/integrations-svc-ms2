@@ -1,9 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
 from uuid import UUID, uuid4
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List
 
 from services.database import get_db
 from models.user import (
@@ -15,6 +15,8 @@ from models.user import (
 from config.settings import settings
 from utils.auth import validate_session
 from security.passwords import hash_password
+
+from utils.hateoas import hateoas_user
 
 
 router = APIRouter(
@@ -28,8 +30,9 @@ router = APIRouter(
 # -----------------------------------------------------------------------------
 
 # Create new user
-@router.post("/", response_model=UserRead, status_code=201)
+@router.post("/", response_model=UserRead, status_code=201, name="create_user")
 async def create_user(
+    request: Request,
     user: UserCreate, 
     db: AsyncSession = Depends(get_db)
 ):
@@ -45,7 +48,7 @@ async def create_user(
     try:
         await db.commit()
         await db.refresh(db_user)
-        return UserRead.model_validate(db_user)
+        return hateoas_user(request=request, user=db_user)
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=400, detail=f"Failed to create new user. {e}")
@@ -54,8 +57,9 @@ async def create_user(
 # GET Endpoints
 # -----------------------------------------------------------------------------
 
-@router.get("/", response_model=list[UserRead], status_code=200)
+@router.get("/", response_model=List[UserRead], status_code=200, name="list_users")
 async def list_users(
+    request: Request,
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
     search: Optional[str] = Query(None, description="Search by name or email"),
@@ -102,12 +106,19 @@ async def list_users(
     
     result = await db.execute(query)
     users = result.scalars().all()
+    resources: List[UserRead] = []
     
-    return [UserRead.model_validate(user) for user in users]
+    for user in users:
+        resources.append(
+            hateoas_user(request, user)
+        )
+    
+    return resources
     
 
-@router.get("/{user_id}", response_model=UserRead, status_code=200)
+@router.get("/{user_id}", response_model=UserRead, status_code=200, name="get_user")
 async def get_user(
+    request: Request,
     user_id: UUID,
     include_inactive: bool = Query(False, description="Include inactive users in search"),
     db: AsyncSession = Depends(get_db)
@@ -122,14 +133,17 @@ async def get_user(
     
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    return UserRead.model_validate(user)
+    
+    
+    return hateoas_user(request, user)
 
 # -----------------------------------------------------------------------------
 # PATCH Endpoint
 # -----------------------------------------------------------------------------
 
-@router.patch("/{user_id}", response_model=UserRead, status_code=200)
+@router.patch("/{user_id}", response_model=UserRead, status_code=200, name="update_user")
 async def update_user(
+    request: Request, 
     user_id: UUID,
     user_update: UserUpdate,
     force_update: bool = Query(False, description="Update even if user is inactive"),
@@ -159,13 +173,13 @@ async def update_user(
     
     await db.commit()
     await db.refresh(user)
-    return UserRead.model_validate(user)
+    return hateoas_user(request, user)
 
 # -----------------------------------------------------------------------------
 # DELETE Endpoint
 # -----------------------------------------------------------------------------
 
-@router.delete("/{user_id}", status_code=204)
+@router.delete("/{user_id}", status_code=204, name="delete_user")
 async def delete_user(
     user_id: UUID,
     soft_delete: bool = Query(True, description="Soft delete (deactivate) instead of hard delete"),

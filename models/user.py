@@ -1,5 +1,6 @@
 from __future__ import annotations
 from datetime import datetime
+from typing import Optional, List
 
 from uuid import UUID, uuid4
 from pydantic import BaseModel, ConfigDict, Field
@@ -7,6 +8,7 @@ from sqlalchemy import String, Boolean, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
 
 from services.database import Base
+from models.hateoas import HATEOASLink
 
 # -----------------------------------------------------------------------------
 # SQLAlchemy Model
@@ -47,7 +49,8 @@ class UserBase(BaseModel):
         ...,
         max_length=255,
         pattern=r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-        description="User's email address (must be unique and valid)"
+        description="User's email address (must be unique and valid)",
+        examples=["email@domain.com"]
     )
 
 class UserCreate(UserBase):
@@ -55,7 +58,8 @@ class UserCreate(UserBase):
         ...,
         min_length=8,
         max_length=128,
-        description="User's password in plain text (will be hashed before storage)"
+        description="User's password in plain text (will be hashed before storage)",
+        examples=["strongpassword"]
     )
 
 class UserUpdate(BaseModel):
@@ -104,6 +108,10 @@ class UserRead(UserBase):
     updated_at: datetime = Field(
         ...,
         description="Timestamp when this user account was last updated"
+    )
+    links: Optional[List[HATEOASLink]] = Field(
+        None,
+        description="HATEOAS links."
     )
 
     model_config = ConfigDict(from_attributes=True)
