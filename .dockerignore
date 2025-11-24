@@ -1,0 +1,11 @@
+.git
+__pycache__/
+.pytest_cache/
+.venv
+.DS_Store
+*.pyc
+*.pyo
+*.pyd
+*.log
+alembic/versions/
+config/client_secret_google.json

@@ -35,4 +35,24 @@ http://35.188.76.100:8000/docs
     (.venv) $ uvicorn main:app
 ```
 
+## Docker
+
+Build image (from repo root):
+```bash
+docker build -t integrations-svc .
+```
+
+Run container (reads env vars such as `DATABASE_URL` and `TOKEN_ENCRYPTION_KEY`):
+```bash
+docker run --env-file .env \
+  -p 8000:8000 \
+  -v $(pwd)/config/client_secret_google.json:/app/config/client_secret_google.json:ro \
+  integrations-svc
+```
+
+Notes:
+- `FASTAPIPORT` controls the internal uvicorn port (defaults to 8000); adjust `-p` mapping as needed.
+- The Google OAuth client secret file is not baked into the image; mount it in if you need Google flows.
+- Make sure `DATABASE_URL` points to a reachable Postgres instance from inside the container.
+
 ## Resource Details

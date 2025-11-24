@@ -1,9 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends, Query, Request, Response
+from fastapi.responses import Response as FastAPIResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, delete
 from uuid import UUID
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Union
 
 from services.database import get_db
 from models.message import (
@@ -132,7 +133,7 @@ async def get_message(
     response: Response,
     db: AsyncSession = Depends(get_db),
     current_user: UserRead = Depends(validate_session)
-):
+) -> Union[MessageRead, FastAPIResponse]:
     """Get specific message details with ETag support"""
     result = await db.execute(
         select(Message).where(
@@ -151,8 +152,7 @@ async def get_message(
     if should_return_304:
         # Return 304 Not Modified
         set_etag_headers(response, etag)
-        response.status_code = 304
-        return Response(status_code=304)
+        return FastAPIResponse(status_code=304, headers={"ETag": etag, "Cache-Control": "private, max-age=0, must-revalidate"})
     
     # Set ETag headers for successful response
     set_etag_headers(response, etag)
@@ -349,18 +349,16 @@ async def bulk_delete_messages(
     external_ids = [msg.external_id for msg in messages_to_delete]
     
     try:
-        gmail_response = await gmail_bulk_delete_messages(gmail_connection, external_ids)
+        await gmail_bulk_delete_messages(gmail_connection, external_ids)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete messages via Gmail API: {str(e)}")
     
-    delete_result = await db.execute(
+    await db.execute(
         delete(Message).where(
             Message.id.in_(message_ids),
             Message.user_id == current_user.id
         )
     )
     
-    
-    deleted_count = len(messages_to_delete) 
     await db.commit()
     
