@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Query, Request
+from fastapi import APIRouter, HTTPException, Depends, Query, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, delete
 from uuid import UUID
@@ -16,6 +16,7 @@ from models.connection import Connection, ConnectionStatus
 from models.user import UserRead
 from utils.auth import validate_session
 from utils.hateoas import hateoas_message
+from utils.etag import handle_conditional_request, set_etag_headers
 from services.gmail import (
     gmail_create_message,
     gmail_update_message,
@@ -128,10 +129,11 @@ async def list_messages(
 async def get_message(
     message_id: UUID,
     request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     current_user: UserRead = Depends(validate_session)
 ):
-    """Get specific message details"""
+    """Get specific message details with ETag support"""
     result = await db.execute(
         select(Message).where(
             Message.id == message_id,
@@ -142,6 +144,18 @@ async def get_message(
     
     if not message:
         raise HTTPException(status_code=404, detail="Message not found")
+    
+    # Handle ETag and conditional requests
+    etag, should_return_304 = handle_conditional_request(request, message)
+    
+    if should_return_304:
+        # Return 304 Not Modified
+        set_etag_headers(response, etag)
+        response.status_code = 304
+        return Response(status_code=304)
+    
+    # Set ETag headers for successful response
+    set_etag_headers(response, etag)
     
     return hateoas_message(request, message)
     
