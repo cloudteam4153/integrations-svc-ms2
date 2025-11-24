@@ -1,7 +1,7 @@
 from __future__ import annotations
 from datetime import datetime
 from enum import Enum as PyEnum
-from typing import Optional
+from typing import Optional, List
 
 from uuid import UUID, uuid4
 from pydantic import BaseModel, ConfigDict, Field
@@ -9,6 +9,7 @@ from sqlalchemy import String, DateTime, ForeignKey, Text, JSON, Integer, Enum a
 from sqlalchemy.orm import Mapped, mapped_column
 
 from services.database import Base
+from models.hateoas import HATEOASLink
 
 # -----------------------------------------------------------------------------
 # Enums
@@ -228,6 +229,10 @@ class SyncRead(SyncBase):
     current_operation: Optional[str] = Field(
         None,
         description="Description of what the sync is currently doing"
+    )
+    links: Optional[List[HATEOASLink]] = Field(
+        None,
+        description="HATEOAS links."
     )
 
     model_config = ConfigDict(from_attributes=True)

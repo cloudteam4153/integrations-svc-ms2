@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, delete
 from uuid import UUID
@@ -15,6 +15,7 @@ from models.message import (
 from models.connection import Connection, ConnectionStatus
 from models.user import UserRead
 from utils.auth import validate_session
+from utils.hateoas import hateoas_message
 from services.gmail import (
     gmail_create_message,
     gmail_update_message,
@@ -48,8 +49,9 @@ async def get_user_gmail_connection(user_id: UUID, db: AsyncSession) -> Optional
 # GET Endpoints
 # -----------------------------------------------------------------------------
 
-@router.get("/", response_model=list[MessageRead], status_code=200)
+@router.get("/", response_model=List[MessageRead], status_code=200, name="list_messages")
 async def list_messages(
+    request: Request,
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
     search: Optional[str] = Query(None, description="Search in message snippet or content"),
@@ -116,11 +118,16 @@ async def list_messages(
     result = await db.execute(query)
     messages = result.scalars().all()
     
-    return [MessageRead.model_validate(message) for message in messages]
+    resource_list: List[MessageRead] = []
+    for message in messages:
+        resource_list.append(hateoas_message(request, message))
+    
+    return resource_list
 
-@router.get("/{message_id}", response_model=MessageRead, status_code=200)
+@router.get("/{message_id}", response_model=MessageRead, status_code=200, name="get_message")
 async def get_message(
     message_id: UUID,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: UserRead = Depends(validate_session)
 ):
@@ -136,16 +143,17 @@ async def get_message(
     if not message:
         raise HTTPException(status_code=404, detail="Message not found")
     
-    return MessageRead.model_validate(message)
+    return hateoas_message(request, message)
     
 
 # -----------------------------------------------------------------------------
 # POST Endpoints
 # -----------------------------------------------------------------------------
 
-@router.post("/", response_model=MessageRead, status_code=201)
+@router.post("/", response_model=MessageRead, status_code=201, name="create_message")
 async def create_message(
     message_data: MessageCreate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: UserRead = Depends(validate_session)
 ):
@@ -200,16 +208,17 @@ async def create_message(
     await db.commit()
     await db.refresh(message)
     
-    return MessageRead.model_validate(message)
+    return hateoas_message(request, message)
 
 # -----------------------------------------------------------------------------
 # PATCH Endpoints
 # -----------------------------------------------------------------------------
 
-@router.patch("/{message_id}", response_model=MessageRead, status_code=200)
+@router.patch("/{message_id}", response_model=MessageRead, status_code=200, name="update_message")
 async def update_message(
     message_id: UUID,
     message_update: MessageUpdate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: UserRead = Depends(validate_session)
 ):
@@ -249,13 +258,13 @@ async def update_message(
     await db.commit()
     await db.refresh(message)
     
-    return MessageRead.model_validate(message)
+    return hateoas_message(request, message)
 
 # -----------------------------------------------------------------------------
 # DELETE Endpoints
 # -----------------------------------------------------------------------------
 
-@router.delete("/{message_id}", status_code=204)
+@router.delete("/{message_id}", status_code=204, name="delete_message")
 async def delete_message(
     message_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -292,7 +301,7 @@ async def delete_message(
     await db.commit()
     
 
-@router.delete("/", status_code=204)
+@router.delete("/", status_code=204, name="bulk_delete_messages")
 async def bulk_delete_messages(
     message_ids: List[UUID] = Query(..., description="List of message IDs to delete"),
     db: AsyncSession = Depends(get_db),

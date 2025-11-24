@@ -1,10 +1,10 @@
 import asyncio
-from fastapi import APIRouter, HTTPException, Depends, Query, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Depends, Query, BackgroundTasks, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 from uuid import UUID
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List
 
 from services.database import get_db
 from models.sync import (
@@ -18,6 +18,7 @@ from models.sync import (
 from models.connection import Connection, ConnectionStatus
 from models.user import UserRead
 from utils.auth import validate_session
+from utils.hateoas import hateoas_sync
 
 
 
@@ -84,8 +85,9 @@ async def process_sync_job(sync_id: UUID, db: AsyncSession):
 # GET Endpoints
 # -----------------------------------------------------------------------------
 
-@router.get("/", response_model=list[SyncRead], status_code=200)
+@router.get("/", response_model=List[SyncRead], status_code=200, name="list_syncs")
 async def list_syncs(
+    request: Request,
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
     status: Optional[SyncStatus] = Query(None, description="Filter by sync status"),
@@ -130,12 +132,17 @@ async def list_syncs(
     result = await db.execute(query)
     syncs = result.scalars().all()
     
-    return [SyncRead.model_validate(sync) for sync in syncs]
+    resource_list: List[SyncRead] = []
+    for sync in syncs:
+        resource_list.append(hateoas_sync(request, sync))
+    
+    return resource_list
 
 
-@router.get("/{sync_id}", response_model=SyncRead, status_code=200)
+@router.get("/{sync_id}", response_model=SyncRead, status_code=200, name="get_sync")
 async def get_sync(
     sync_id: UUID,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: UserRead = Depends(validate_session)
 ):
@@ -151,11 +158,12 @@ async def get_sync(
     if not sync_job:
         raise HTTPException(status_code=404, detail="Sync job not found")
     
-    return SyncRead.model_validate(sync_job)
+    return hateoas_sync(request, sync_job)
 
-@router.get("/{sync_id}/status", response_model=SyncRead, status_code=200)
+@router.get("/{sync_id}/status", response_model=SyncRead, status_code=200, name="get_sync_status")
 async def get_sync_status(
     sync_id: UUID,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: UserRead = Depends(validate_session)
 ):
@@ -171,16 +179,17 @@ async def get_sync_status(
     if not sync_job:
         raise HTTPException(status_code=404, detail="Sync job not found")
     
-    return SyncRead.model_validate(sync_job)
+    return hateoas_sync(request, sync_job)
 
 # -----------------------------------------------------------------------------
 # POST Endpoints
 # -----------------------------------------------------------------------------
 
 # Async endpoint for sync job
-@router.post("/", response_model=SyncRead, status_code=202)
+@router.post("/", response_model=SyncRead, status_code=202, name="create_sync")
 async def create_sync(
     sync_data: SyncCreate,
+    request: Request,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: UserRead = Depends(validate_session)
@@ -215,16 +224,17 @@ async def create_sync(
     # Start background task
     background_tasks.add_task(process_sync_job, sync_job.id, db)
     
-    return SyncRead.model_validate(sync_job)
+    return hateoas_sync(request, sync_job)
 
 # -----------------------------------------------------------------------------
 # PATCH Endpoints
 # -----------------------------------------------------------------------------
 
-@router.patch("/{sync_id}", response_model=SyncRead, status_code=200)
+@router.patch("/{sync_id}", response_model=SyncRead, status_code=200, name="update_sync")
 async def update_sync(
     sync_id: UUID,
     sync_update: SyncUpdate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: UserRead = Depends(validate_session)
 ):
@@ -250,15 +260,16 @@ async def update_sync(
     await db.commit()
     await db.refresh(sync_job)
     
-    return SyncRead.model_validate(sync_job)
+    return hateoas_sync(request, sync_job)
 
 # -----------------------------------------------------------------------------
 # DELETE Endpoints
 # -----------------------------------------------------------------------------
 
-@router.delete("/{sync_id}", status_code=204)
+@router.delete("/{sync_id}", status_code=204, name="delete_sync")
 async def delete_sync(
     sync_id: UUID,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: UserRead = Depends(validate_session)
 ):

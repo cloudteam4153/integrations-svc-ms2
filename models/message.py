@@ -1,6 +1,6 @@
 from __future__ import annotations
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 from uuid import UUID, uuid4
 from pydantic import BaseModel, ConfigDict, Field
@@ -8,6 +8,7 @@ from sqlalchemy import String, DateTime, ForeignKey, Text, JSON, BigInteger
 from sqlalchemy.orm import Mapped, mapped_column
 
 from services.database import Base
+from models.hateoas import HATEOASLink
 
 # -----------------------------------------------------------------------------
 # SQLAlchemy Model
@@ -125,6 +126,10 @@ class MessageRead(MessageBase):
     updated_at: datetime = Field(
         ..., 
         description="Timestamp when this message record was last updated"
+    )
+    links: Optional[List[HATEOASLink]] = Field(
+        None,
+        description="HATEOAS links."
     )
 
     model_config = ConfigDict(from_attributes=True)
