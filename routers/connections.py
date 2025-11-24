@@ -1,9 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 from uuid import UUID, uuid4
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List
 from google_auth_oauthlib.flow import Flow
 
 from services.database import get_db
@@ -13,13 +13,15 @@ from models.connection import (
     ConnectionUpdate,
     ConnectionInitiateRequest,
     ConnectionInitiateResponse,
-    ConnectionStatus
+    ConnectionStatus,
+    ConnectionTest
 )
 from config.settings import settings
 from models.user import UserRead
 from models.oauth import OAuth
 from utils.auth import validate_session
 from models.oauth import OAuthProvider
+from utils.hateoas import hateoas_connection, build_connection_links
 
 
 
@@ -34,7 +36,7 @@ router = APIRouter(
 
 # POST new Connection (starts OAuth flow to /oauth/callback/ starting with authorization_url
 # that the frontend must redirect to)
-@router.post("/", response_model=ConnectionInitiateResponse, status_code=201)
+@router.post("/", response_model=ConnectionInitiateResponse, status_code=201, name="create_connection")
 async def create_connection( 
     connection: ConnectionInitiateRequest,
     db: AsyncSession = Depends(get_db),
@@ -74,14 +76,15 @@ async def create_connection(
     db.add(oauth_state)
     await db.commit()
 
-    # Return to frontend
+    # Return to frontend (no HATEOAS since its a specific redirect)
     return ConnectionInitiateResponse(auth_url=authorization_url)
 
 
 
 # PATCH Connection update (technically this endpoint may never be used)
-@router.patch("/{connection_id}", response_model=ConnectionRead, status_code=200)
+@router.patch("/{connection_id}", response_model=ConnectionRead, status_code=200, name="update_connection")
 async def update_connection(
+    request: Request,
     connection_id: UUID,
     connection_update: ConnectionUpdate,
     db: AsyncSession = Depends(get_db),
@@ -107,7 +110,8 @@ async def update_connection(
     await db.commit()
     await db.refresh(connection)
     
-    return ConnectionRead.model_validate(connection)
+    # return ConnectionRead.model_validate(connection)
+    return hateoas_connection(request, connection)
 
 
 # -----------------------------------------------------------------------------
@@ -115,8 +119,9 @@ async def update_connection(
 # -----------------------------------------------------------------------------
 
 # GET Connections (list) with pagination and filtering
-@router.get("/", response_model=list[ConnectionRead], status_code=200)
+@router.get("/", response_model=List[ConnectionRead], status_code=200, name="list_connections")
 async def list_connections(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: UserRead = Depends(validate_session),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
@@ -141,14 +146,19 @@ async def list_connections(
     
     result = await db.execute(query)
     connections = result.scalars().all()
+    resources: List[ConnectionRead] = []
+    for connection in connections:
+        resources.append(hateoas_connection(request, connection))
 
-    return [ConnectionRead.model_validate(conn) for conn in connections]
+    # return [ConnectionRead.model_validate(conn) for conn in connections]
+    return resources
 
 
 
 # GET Connection specific
-@router.get("/{connection_id}", response_model=ConnectionRead, status_code=200)
+@router.get("/{connection_id}", response_model=ConnectionRead, status_code=200, name="get_connection")
 async def get_connection(
+    request: Request,
     connection_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(validate_session),
@@ -165,7 +175,8 @@ async def get_connection(
     if connection is None:
         raise HTTPException(status_code=404, detail="Connection not found")
     else:
-        return ConnectionRead.model_validate(connection)
+        # return ConnectionRead.model_validate(connection)
+        return hateoas_connection(request, connection)
 
 
 
@@ -174,7 +185,7 @@ async def get_connection(
 # -----------------------------------------------------------------------------
 
 # DELETE Connection Specific
-@router.delete("/{connection_id}", status_code=204)
+@router.delete("/{connection_id}", status_code=204, name="delete_connection")
 async def delete_connection(
     connection_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -203,8 +214,9 @@ async def delete_connection(
 # -----------------------------------------------------------------------------
 
 # Test Connection
-@router.post("/{connection_id}/test", status_code=200)
+@router.post("/{connection_id}/test", response_model=ConnectionTest, status_code=200, name="test_connection")
 async def test_connection(
+    request: Request,
     connection_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: UserRead = Depends(validate_session)
@@ -224,22 +236,24 @@ async def test_connection(
     
     # Create function to actually check the status via API call
     try:
-        # for now, just get status from database
-        if not connection.access_token:
-            return {"status": "failed", "message": "No access token available"}
-        
-        if connection.access_token_expiry and connection.access_token_expiry < datetime.now():
-            return {"status": "failed", "message": "Access token expired"}
-        
-        return {"status": "success", "message": "Connection is working"}
+        conn_test = ConnectionTest(
+            id=connection.id,
+            user_id=current_user.id,
+            provider=connection.provider,
+            status=connection.status,
+            detail=connection.last_error if connection.last_error else None,
+            links=build_connection_links(request, connection)
+        )
+        return conn_test
         
     except Exception as e:
-        return {"status": "failed", "message": f"Connection test failed: {str(e)}"}
+        raise HTTPException(status_code=500, detail=f"Connection test failed: {e}")
 
 
 # Refresh/reconnect (using code 200 instead of 201 since we're not creating a new record)
-@router.post("/{connection_id}/refresh", response_model=ConnectionRead, status_code=200)
+@router.post("/{connection_id}/refresh", response_model=ConnectionRead, status_code=200, name="refresh_connection")
 async def refresh_connection(
+    request: Request,
     connection_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: UserRead = Depends(validate_session)
@@ -272,7 +286,8 @@ async def refresh_connection(
         await db.commit()
         await db.refresh(connection)
         
-        return ConnectionRead.model_validate(connection)
+        # return ConnectionRead.model_validate(connection)
+        return hateoas_connection(request, connection)
         
     except Exception as e:
         connection.status = ConnectionStatus.FAILED
@@ -280,18 +295,4 @@ async def refresh_connection(
         await db.commit()
         await db.refresh(connection)
         
-        raise HTTPException(status_code=400, detail=f"Failed to refresh connection: {str(e)}")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        raise HTTPException(status_code=500, detail=f"Failed to refresh connection: {str(e)}")

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from datetime import datetime
 from enum import Enum as PyEnum
-from typing import Optional
+from typing import Optional, List
 
 from uuid import UUID, uuid4
 from pydantic import BaseModel, ConfigDict, Field
@@ -10,6 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from services.database import Base
 from models.oauth import OAuthProvider
+from models.hateoas import HATEOASLink
 
 # -----------------------------------------------------------------------------
 # Enums
@@ -140,6 +141,10 @@ class ConnectionRead(ConnectionBase):
         None,
         description="When the access token expires (if applicable)"
     )
+    links: Optional[List[HATEOASLink]] = Field(
+        None,
+        description="HATEOAS links."
+    )
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -172,4 +177,30 @@ class ConnectionUpdate(BaseModel):
     last_error: str | None = Field(
         None,
         description="Updated error message or None to clear errors"
+    )
+
+class ConnectionTest(BaseModel):
+    id: UUID = Field(
+        ...,
+        description="Internal unique identifier for this connection"
+    )
+    user_id: UUID = Field(
+        ...,
+        description="ID of the user who owns this connection"
+    )
+    provider: str = Field(
+        ...,
+        description="OAuth provider name to connect to"
+    )
+    status: ConnectionStatus = Field(
+        ...,
+        description="Current status of the connection"
+    )
+    detail: str | None = Field(
+        None,
+        description="Details about the status"
+    )
+    links: Optional[List[HATEOASLink]] = Field(
+        None,
+        description="HATEOAS links."
     )
