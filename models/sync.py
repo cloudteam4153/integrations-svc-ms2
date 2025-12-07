@@ -93,14 +93,38 @@ class SyncBase(BaseModel):
         description="Current status of the sync job"
     )
 
-class SyncCreate(SyncBase):
+class SyncStatusUpdate(SyncBase):
+    id: UUID = Field(
+        ...,
+        description="Internal unique identifier for this sync job"
+    )
     connection_id: UUID = Field(
         ...,
-        description="ID of the connection to sync data from"
+        description="ID of the connection that was synced"
     )
     user_id: UUID = Field(
         ...,
         description="ID of the user who owns this sync job"
+    )
+    time_start: Optional[datetime] = Field(
+        None,
+        description="When the sync job started processing"
+    )
+    progress_percentage: Optional[int] = Field(
+        None,
+        ge=0,
+        le=100,
+        description="Current progress of the sync job (0-100%)"
+    )
+    current_operation: Optional[str] = Field(
+        None,
+        description="Description of what the sync is currently doing"
+    )
+
+class SyncCreate(BaseModel):
+    sync_type: SyncType = Field(
+        SyncType.INCREMENTAL,
+        description="Type of sync operation (full, incremental, or manual)"
     )
 
 class SyncUpdate(BaseModel):

@@ -18,7 +18,7 @@ from models.user import UserRead
 from utils.auth import validate_session
 from utils.hateoas import hateoas_message
 from utils.etag import handle_conditional_request, set_etag_headers
-from services.gmail import (
+from services.sync.gmail import (
     gmail_create_message,
     gmail_update_message,
     gmail_delete_message,

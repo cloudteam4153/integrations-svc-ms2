@@ -14,7 +14,7 @@ from google.auth.exceptions import GoogleAuthError
 from googleapiclient.discovery import build
 from google.auth.transport.requests import Request as GoogleRequest
 
-from services.gmail import get_account_id
+from services.sync.gmail import get_account_id
 from security import token_cipher
 from config.settings import settings
 

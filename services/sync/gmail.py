@@ -2,12 +2,47 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Any
 from uuid import UUID
 from fastapi.exceptions import HTTPException
+from datetime import datetime, timezone
 
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
+
+from security import token_cipher
+from config.settings import settings
 
 from models.connection import Connection
 from models.message import MessageCreate, MessageUpdate
+from models.sync import SyncType
+
+# -----------------------------------------------------------------------------
+# Gmail Helper Functions
+# -----------------------------------------------------------------------------
+
+def connection_to_creds(conn: Connection) -> Credentials:
+    expiry = None
+    if conn.access_token_expiry:
+        expiry = conn.access_token_expiry.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+    token_row = {
+        "token": token_cipher.decrypt(conn.access_token),
+        "refresh_token": token_cipher.decrypt(conn.refresh_token),
+        "token_uri": settings.GOOGLE_TOKEN_URI,
+        "client_id": settings.GOOGLE_CLIENT_ID,
+        "client_secret": settings.GOOGLE_CLIENT_SECRET,
+        "scopes": conn.scopes,
+        "expiry": expiry,
+    }
+
+    creds: Credentials = Credentials.from_authorized_user_info(token_row)
+
+    if not creds.valid:
+        if creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            raise RuntimeError("Invalid Google credentials: cannot refresh")
+
+    return creds
 
 
 # -----------------------------------------------------------------------------
@@ -98,16 +133,79 @@ async def gmail_list_messages(
     pass
 
 
-async def gmail_sync_messages(
-    connection: Connection,
-    history_id: Optional[str] = None,
-    full_sync: bool = False
+def gmail_sync_messages(
+    creds: Credentials,
+    sync_type: SyncType,
+    last_history_id: Optional[str] = None,
 ):
     """
     Sync messages from Gmail API (used by sync jobs).
     """
-    raise HTTPException(status_code=501, detail="Not Implemented: Gmail API Sync messages.")
-    pass
+    service = build("gmail", "v1", credentials=creds)
+    messages = []
+    new_history_id = last_history_id
+
+    # Full sync
+    if sync_type == SyncType.FULL or not last_history_id:
+        page_token = None
+
+        while True:
+            res = service.users().messages().list(
+                userId="me",
+                maxResults=500,
+                pageToken=page_token,
+            ).execute()
+
+            msg_ids = res.get("messages", [])
+            messages.extend(msg_ids)
+
+            page_token = res.get("nextPageToken")
+            if not page_token:
+                break
+
+        # Get newest history ID
+        profile = service.users().getProfile(userId="me").execute()
+        new_history_id = profile["historyId"]
+
+    # incremental sync
+    else:
+        page_token = None
+
+        while True:
+            res = service.users().history().list(
+                userId="me",
+                startHistoryId=last_history_id,
+                pageToken=page_token,
+            ).execute()
+
+            for h in res.get("history", []):
+                for m in h.get("messagesAdded", []):
+                    messages.append(m["message"])
+
+            page_token = res.get("nextPageToken")
+            if not page_token:
+                break
+
+            new_history_id = res.get("historyId", new_history_id)
+
+    # get full messages
+    full_messages = []
+    for m in messages:
+        full = service.users().messages().get(
+            userId="me",
+            id=m["id"],
+            format="full"
+        ).execute()
+        full_messages.append(full)
+
+    # 6. Return ONLY data + stats (async layer writes to DB)
+    return {
+        "messages": full_messages,
+        "messages_synced": len(full_messages),
+        "messages_new": len(full_messages),
+        "messages_updated": 0,
+        "last_history_id": new_history_id,
+    }
 
 
 # -----------------------------------------------------------------------------

@@ -1,24 +1,29 @@
-import asyncio
 from fastapi import APIRouter, HTTPException, Depends, Query, BackgroundTasks, Request
+
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select, and_, or_
+
 from uuid import UUID
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional, List
 
-from services.database import get_db
 from models.sync import (
     Sync,
     SyncCreate, 
     SyncRead,
     SyncUpdate,
     SyncStatus,
-    SyncType
+    SyncType,
+    SyncStatusUpdate
 )
 from models.connection import Connection, ConnectionStatus
-from models.user import UserRead
+from models.user import User, UserRead
+
+from services.database import get_db
 from utils.auth import validate_session
 from utils.hateoas import hateoas_sync
+from services.sync.worker import process_sync_job
 
 
 
@@ -27,59 +32,6 @@ router = APIRouter(
     tags=["Syncs"],
 )
 
-# Background task for async sync processing
-async def process_sync_job(sync_id: UUID, db: AsyncSession):
-    """Background task to process sync job"""
-    # Get sync job
-    result = await db.execute(select(Sync).where(Sync.id == sync_id))
-    sync_job = result.scalar_one_or_none()
-    
-    if not sync_job:
-        return
-    
-    try:
-        # Update status to running
-        sync_job.status = SyncStatus.RUNNING
-        sync_job.time_start = datetime.now()
-        sync_job.current_operation = "Starting sync"
-        await db.commit()
-        
-        # Get connection for this sync
-        result = await db.execute(
-            select(Connection).where(Connection.id == sync_job.connection_id)
-        )
-        connection = result.scalar_one_or_none()
-        
-        if not connection or connection.status != ConnectionStatus.ACTIVE:
-            raise Exception("Connection not active or not found")
-        
-        # here do the actual sync job logic with Gmail or whatever external service
-        
-        # Simulate sync work with progress updates
-        for progress in [25, 50, 75, 100]:
-            sync_job.progress_percentage = progress
-            sync_job.current_operation = f"Syncing messages... {progress}%"
-            await db.commit()
-            # Simulate work (replace with actual Gmail API calls)
-            await asyncio.sleep(1)
-        
-        # Mark as completed and update all the relevant information
-        # sync_job.status = SyncStatus.COMPLETED
-        # sync_job.time_end = datetime.now()
-        # sync_job.progress_percentage = 
-        # sync_job.current_operation = "Sync completed"
-        # sync_job.messages_synced = 
-        # sync_job.messages_new = 
-        # sync_job.messages_updated = 
-        
-    except Exception as e:
-        sync_job.status = SyncStatus.FAILED
-        sync_job.time_end = datetime.now()
-        sync_job.error_message = str(e)
-        sync_job.current_operation = "Sync failed"
-        
-    finally:
-        await db.commit()
 
 # -----------------------------------------------------------------------------
 # GET Endpoints
@@ -160,7 +112,7 @@ async def get_sync(
     
     return hateoas_sync(request, sync_job)
 
-@router.get("/{sync_id}/status", response_model=SyncRead, status_code=200, name="get_sync_status")
+@router.get("/{sync_id}/status", response_model=SyncStatusUpdate, status_code=200, name="get_sync_status")
 async def get_sync_status(
     sync_id: UUID,
     request: Request,
@@ -178,15 +130,24 @@ async def get_sync_status(
     
     if not sync_job:
         raise HTTPException(status_code=404, detail="Sync job not found")
-    
-    return hateoas_sync(request, sync_job)
+        
+    return SyncStatusUpdate(
+        id=sync_job.id,
+        connection_id=sync_job.connection_id,
+        user_id=sync_job.user_id,
+        sync_type=sync_job.sync_type,
+        status=sync_job.status,
+        time_start=sync_job.time_start,
+        progress_percentage=sync_job.progress_percentage,
+        current_operation=sync_job.current_operation
+    )
 
 # -----------------------------------------------------------------------------
 # POST Endpoints
 # -----------------------------------------------------------------------------
 
 # Async endpoint for sync job
-@router.post("/", response_model=SyncRead, status_code=202, name="create_sync")
+@router.post("/", response_model=List[SyncRead], status_code=202, name="create_sync")
 async def create_sync(
     sync_data: SyncCreate,
     request: Request,
@@ -195,36 +156,67 @@ async def create_sync(
     current_user: UserRead = Depends(validate_session)
 ):
     """Create and start new sync job asynchronously"""
-    result = await db.execute(
-        select(Connection).where(
-            Connection.id == sync_data.connection_id,
-            Connection.user_id == current_user.id
+
+    query = (
+        select(Connection, Sync)
+        .join(User, User.id == Connection.user_id)
+        .outerjoin(
+            Sync,
+            and_(
+                Sync.connection_id == Connection.id,
+                Sync.status.in_([SyncStatus.PENDING, SyncStatus.RUNNING])
+            )
+        )
+        .where(
+            User.id == current_user.id,
+            Connection.status == ConnectionStatus.ACTIVE
         )
     )
-    connection = result.scalar_one_or_none()
-    
-    if not connection:
-        raise HTTPException(status_code=404, detail="Connection not found")
-    
-    if connection.status != ConnectionStatus.ACTIVE:
-        raise HTTPException(status_code=400, detail="Connection is not active")
-    
-    # Create sync job
-    sync_job = Sync(
-        connection_id=sync_data.connection_id,
-        user_id=current_user.id,
-        sync_type=sync_data.sync_type,
-        status=SyncStatus.PENDING
-    )
-    
-    db.add(sync_job)
+
+    result = await db.execute(query)
+    rows = result.all()
+
+    sync_jobs: list[tuple[Sync, Connection]] = []
+
+    for connection, existing_sync in rows:
+        if existing_sync:
+            sync_jobs.append((existing_sync, connection))
+        else:
+            new_sync = Sync(
+                connection_id = connection.id,
+                user_id = current_user.id,
+                status = SyncStatus.PENDING,
+                sync_type = sync_data.sync_type
+            )
+
+            db.add(new_sync)
+            try:
+                await db.flush()
+                sync_jobs.append((new_sync, connection))
+
+            except IntegrityError:
+                await db.rollback()
+                result = await db.execute(
+                    select(Sync).where(
+                        Sync.connection_id == connection.id,
+                        Sync.status.in_([SyncStatus.PENDING, SyncStatus.RUNNING])
+                    )
+                )
+                existing_sync = result.scalar_one()
+                sync_jobs.append((existing_sync, connection))
+
     await db.commit()
-    await db.refresh(sync_job)
     
     # Start background task
-    background_tasks.add_task(process_sync_job, sync_job.id, db)
+    for sync_job, conneciton in sync_jobs:
+        if sync_job.status == SyncStatus.PENDING:
+            background_tasks.add_task(
+                process_sync_job, 
+                sync_job.id,
+                connection
+            )
     
-    return hateoas_sync(request, sync_job)
+    return [hateoas_sync(request, job) for job, _ in sync_jobs]
 
 # -----------------------------------------------------------------------------
 # PATCH Endpoints

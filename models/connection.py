@@ -58,6 +58,9 @@ class Connection(Base):
     scopes: Mapped[list[str]] = mapped_column(JSON, nullable=True)
     access_token_expiry: Mapped[datetime] = mapped_column(DateTime, nullable=True)
 
+    # history cursor
+    last_history_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.now,
@@ -141,6 +144,10 @@ class ConnectionRead(ConnectionBase):
         None,
         description="When the access token expires (if applicable)"
     )
+    last_history_id: str | None = Field(
+        None,
+        description="Gmail history cursor used for incremental sync"
+    )
     links: Optional[List[HATEOASLink]] = Field(
         None,
         description="HATEOAS links."
@@ -177,6 +184,10 @@ class ConnectionUpdate(BaseModel):
     last_error: str | None = Field(
         None,
         description="Updated error message or None to clear errors"
+    )
+    last_history_id: str | None = Field(
+        None,
+        description="Updated Gmail history cursor after successful sync"
     )
 
 class ConnectionTest(BaseModel):
