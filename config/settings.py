@@ -24,6 +24,8 @@ class Settings(BaseSettings):
             'https://www.googleapis.com/auth/gmail.modify',
             'openid'
         ]
+    GOOGLE_CLIENT_ID: str
+    GOOGLE_CLIENT_SECRET: str
 
     # Config to read from .env file if available
     model_config = SettingsConfigDict(

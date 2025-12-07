@@ -1,10 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import RedirectResponse
-from config.settings import settings
-from security import token_cipher
-
-from datetime import datetime, timedelta
-from typing import Optional
+from fastapi.concurrency import run_in_threadpool
+from datetime import datetime
+from typing import Optional, cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +12,11 @@ from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from google.auth.exceptions import GoogleAuthError
 from googleapiclient.discovery import build
+from google.auth.transport.requests import Request as GoogleRequest
+
+from services.gmail import get_account_id
+from security import token_cipher
+from config.settings import settings
 
 from models.oauth import OAuthProvider, OAuth
 from models.connection import Connection, ConnectionStatus
@@ -57,7 +60,7 @@ async def oauth_callback(
     if connection is None:
         raise HTTPException(status_code=404, detail="Connection not found.")
 
-    flow = Flow.from_client_secrets_file(
+    flow: Flow = Flow.from_client_secrets_file(
         settings.GOOGLE_CLIENT_SECRETS_FILE,
         scopes=settings.GMAIL_OAUTH_SCOPES,
         state=state
@@ -66,7 +69,7 @@ async def oauth_callback(
 
     try:
         flow.fetch_token(code=code)
-        credentials: Credentials = Credentials(flow.credentials)
+        credentials: Credentials = cast(Credentials, flow.credentials)
     except GoogleAuthError as e:
         await db.delete(oauth_state)
         await db.commit()
@@ -75,9 +78,20 @@ async def oauth_callback(
         await db.delete(oauth_state)
         await db.commit()
         raise HTTPException(status_code=500, detail=f"Unknown authentication error occured. {e}")
-    
 
-    connection.provider_account_id = credentials.account
+
+    # make sure token is good
+    if credentials.expired and credentials.refresh_token:
+        credentials.refresh(GoogleRequest())
+
+    # api request to get account email
+    gmail = await run_in_threadpool(get_account_id, credentials)
+
+    if gmail is None:
+        raise HTTPException(status_code=404, detail="Failed to get Gmail account ID.")
+    
+    # add to db record
+    connection.provider_account_id = gmail
     connection.status = ConnectionStatus.ACTIVE
 
     try:

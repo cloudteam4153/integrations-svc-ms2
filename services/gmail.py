@@ -3,6 +3,9 @@ from typing import Dict, List, Optional, Any
 from uuid import UUID
 from fastapi.exceptions import HTTPException
 
+from googleapiclient.discovery import build
+from google.oauth2.credentials import Credentials
+
 from models.connection import Connection
 from models.message import MessageCreate, MessageUpdate
 
@@ -10,6 +13,21 @@ from models.message import MessageCreate, MessageUpdate
 # -----------------------------------------------------------------------------
 # Gmail API Functions
 # -----------------------------------------------------------------------------
+
+def get_account_id(
+    creds: Credentials
+) -> str | None:
+    
+    service = build("gmail", "v1", credentials=creds)
+    
+    profile = service.users().getProfile(userId="me").execute()
+
+    email = str(profile["emailAddress"])
+    if email:
+        return email
+    else:
+        return None 
+    
 
 async def gmail_create_message(
     connection: Connection, 
