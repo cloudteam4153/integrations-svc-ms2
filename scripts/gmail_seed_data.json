@@ -1,0 +1,359 @@
+[
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "alex@company.com",
+    "subject": "Quick sync this week?",
+    "body": "Hey, are you free sometime this week for a quick 30-minute sync to go over the API design?",
+    "days_ago": 2,
+    "labels": ["INBOX", "UNREAD"]
+  },
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "events@company.com",
+    "subject": "Reminder: Product launch Monday at 7 PM",
+    "body": "Just a reminder that the product launch event is happening this Monday at 7 PM in the main auditorium.",
+    "days_ago": 5,
+    "labels": ["INBOX"]
+  },
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "priya@company.com",
+    "subject": "Can you send the architecture docs?",
+    "body": "When you have a moment, can you send over the updated architecture documents from last week?",
+    "days_ago": 4,
+    "labels": ["INBOX", "UNREAD"]
+  },
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "daniel@client.com",
+    "subject": "Following up on last week's proposal",
+    "body": "Just checking in to see if you had a chance to review the proposal I sent last week. Looking forward to your thoughts.",
+    "days_ago": 6,
+    "labels": ["INBOX"]
+  },
+  {
+    "to": "operations@company.com",
+    "from": "cloudprojecttest4153@gmail.com",
+    "subject": "Re: Budget approval",
+    "body": "Following up on the budget approval we discussed last week. Let me know if you need anything else from me.",
+    "days_ago": 7,
+    "labels": ["SENT"]
+  },
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "maria@company.com",
+    "subject": "Re: Budget approval",
+    "body": "Let me confirm with finance and I’ll get back to you shortly.",
+    "days_ago": 6,
+    "labels": ["INBOX"]
+  },
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "hr@company.com",
+    "subject": "Action Required: Benefits Enrollment",
+    "body": "Please complete your benefits enrollment by end of day Friday to avoid any lapse in coverage.",
+    "days_ago": 1,
+    "labels": ["INBOX", "UNREAD"]
+  },
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "sam@partner.com",
+    "subject": "Are you free for a partnership call?",
+    "body": "Would you be available tomorrow afternoon for a quick call to discuss next steps on the partnership?",
+    "days_ago": 3,
+    "labels": ["INBOX"]
+  },
+  {
+    "to": "vendor@services.com",
+    "from": "cloudprojecttest4153@gmail.com",
+    "subject": "Invoice clarification",
+    "body": "Hi, I had a quick question regarding line item #3 on the invoice you sent over.",
+    "days_ago": 8,
+    "labels": ["SENT"]
+  },
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "ops@company.com",
+    "subject": "Urgent: Production issue detected",
+    "body": "We detected a production issue affecting a small number of users. Can you take a look as soon as possible?",
+    "days_ago": 0,
+    "labels": ["INBOX", "UNREAD"]
+  },
+  
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "jess@company.com",
+    "subject": "Can you review the PR today?",
+    "body": "Hey, could you take a quick look at the pull request I opened this morning when you get a chance?",
+    "days_ago": 1,
+    "labels": ["INBOX", "UNREAD"]
+  },
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "support@vendor.com",
+    "subject": "Ticket #48291 Update",
+    "body": "We’ve applied a patch to resolve the issue you reported. Please confirm if everything looks good on your end.",
+    "days_ago": 2,
+    "labels": ["INBOX"]
+  },
+  {
+    "to": "finance@company.com",
+    "from": "cloudprojecttest4153@gmail.com",
+    "subject": "Re: Payment processing issue",
+    "body": "Thanks for looking into this. Let me know if you need anything else from me.",
+    "days_ago": 3,
+    "labels": ["SENT"]
+  },
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "nikhil@company.com",
+    "subject": "Sprint planning tomorrow",
+    "body": "Just a reminder that sprint planning is scheduled for tomorrow at 10 AM.",
+    "days_ago": 1,
+    "labels": ["INBOX"]
+  },
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "legal@company.com",
+    "subject": "NDA requires your signature",
+    "body": "Please review and sign the attached NDA at your earliest convenience.",
+    "days_ago": 4,
+    "labels": ["INBOX", "UNREAD"]
+  },
+  {
+    "to": "recruiter@company.com",
+    "from": "cloudprojecttest4153@gmail.com",
+    "subject": "Re: Candidate interview feedback",
+    "body": "Here’s my feedback from today’s interview. Happy to discuss if needed.",
+    "days_ago": 2,
+    "labels": ["SENT"]
+  },
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "ops@company.com",
+    "subject": "Deployment scheduled tonight",
+    "body": "We’ll be deploying the latest release at 11 PM tonight. Expect brief downtime.",
+    "days_ago": 0,
+    "labels": ["INBOX", "UNREAD"]
+  },
+  {
+    "to": "marketing@company.com",
+    "from": "cloudprojecttest4153@gmail.com",
+    "subject": "Re: Campaign assets",
+    "body": "Here are the final assets for the campaign. Let me know if any tweaks are needed.",
+    "days_ago": 5,
+    "labels": ["SENT"]
+  },
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "it@company.com",
+    "subject": "Password Expiration Notice",
+    "body": "Your system password will expire in 3 days. Please update it before then.",
+    "days_ago": 2,
+    "labels": ["INBOX"]
+  },
+  {
+    "to": "sales@vendor.com",
+    "from": "cloudprojecttest4153@gmail.com",
+    "subject": "Follow-up on demo request",
+    "body": "Just checking in to see if you had availability next week for a short demo.",
+    "days_ago": 6,
+    "labels": ["SENT"]
+  },
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "ceo@company.com",
+    "subject": "Board meeting prep",
+    "body": "Can you send me the updated metrics deck by Friday morning?",
+    "days_ago": 3,
+    "labels": ["INBOX", "UNREAD"]
+  },
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "procurement@company.com",
+    "subject": "Laptop order confirmation",
+    "body": "Your equipment order has been submitted and is currently being processed.",
+    "days_ago": 7,
+    "labels": ["INBOX"]
+  },
+  {
+    "to": "partner@startup.com",
+    "from": "cloudprojecttest4153@gmail.com",
+    "subject": "Re: Integration timeline",
+    "body": "Early next month should work on our side for the integration milestone.",
+    "days_ago": 4,
+    "labels": ["SENT"]
+  },
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "events@industry.com",
+    "subject": "Conference Registration Confirmed",
+    "body": "You’re confirmed for the annual developer conference next month.",
+    "days_ago": 8,
+    "labels": ["INBOX"]
+  },
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "qa@company.com",
+    "subject": "Bug found in reporting module",
+    "body": "We found a bug affecting export functionality. Can you investigate?",
+    "days_ago": 1,
+    "labels": ["INBOX", "UNREAD"]
+  },
+  {
+    "to": "billing@vendor.com",
+    "from": "cloudprojecttest4153@gmail.com",
+    "subject": "Re: Duplicate charge",
+    "body": "Thanks for resolving the billing issue so quickly.",
+    "days_ago": 9,
+    "labels": ["SENT"]
+  },
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "sam@company.com",
+    "subject": "Lunch next week?",
+    "body": "Want to grab lunch sometime next week and catch up?",
+    "days_ago": 2,
+    "labels": ["INBOX"]
+  },
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "security@company.com",
+    "subject": "Suspicious login attempt blocked",
+    "body": "We blocked a suspicious login attempt on your account. No action needed unless this was you.",
+    "days_ago": 0,
+    "labels": ["INBOX", "UNREAD"]
+  },
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "pm@company.com",
+    "subject": "Roadmap review",
+    "body": "Can you review the Q2 roadmap draft before tomorrow’s meeting?",
+    "days_ago": 1,
+    "labels": ["INBOX", "UNREAD"]
+  },
+  {
+    "to": "design@company.com",
+    "from": "cloudprojecttest4153@gmail.com",
+    "subject": "Re: UX mockups",
+    "body": "The updated mockups look great. Approved on my end.",
+    "days_ago": 5,
+    "labels": ["SENT"]
+  },
+
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "analytics@company.com",
+    "subject": "Dashboard update ready",
+    "body": "The new analytics dashboard is live and ready for review.",
+    "days_ago": 3,
+    "labels": ["INBOX"]
+  },
+  {
+    "to": "cto@company.com",
+    "from": "cloudprojecttest4153@gmail.com",
+    "subject": "Re: Infra scaling plan",
+    "body": "I’ve added my comments to the scaling document you shared.",
+    "days_ago": 6,
+    "labels": ["SENT"]
+  },
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "vendor@cloudsvc.com",
+    "subject": "Upcoming maintenance window",
+    "body": "Scheduled maintenance is planned for Saturday at 2 AM UTC.",
+    "days_ago": 10,
+    "labels": ["INBOX"]
+  },
+
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "training@company.com",
+    "subject": "Security training reminder",
+    "body": "Don’t forget to complete your annual security training this week.",
+    "days_ago": 2,
+    "labels": ["INBOX"]
+  },
+
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "jacob@client.com",
+    "subject": "Questions about the contract terms",
+    "body": "I had a couple of questions about section 4 of the contract. Can we discuss?",
+    "days_ago": 4,
+    "labels": ["INBOX", "UNREAD"]
+  },
+
+  {
+    "to": "payroll@company.com",
+    "from": "cloudprojecttest4153@gmail.com",
+    "subject": "Re: Pay stub correction",
+    "body": "Thanks for correcting the payroll discrepancy.",
+    "days_ago": 11,
+    "labels": ["SENT"]
+  },
+
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "devops@company.com",
+    "subject": "Kubernetes cluster upgrade",
+    "body": "We’re upgrading the cluster this weekend. Please flag any concerns.",
+    "days_ago": 3,
+    "labels": ["INBOX"]
+  },
+
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "travel@company.com",
+    "subject": "Flight itinerary for NYC trip",
+    "body": "Your flight to NYC is scheduled for 8:15 AM this Friday.",
+    "days_ago": 2,
+    "labels": ["INBOX"]
+  },
+
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "mentor@company.com",
+    "subject": "Weekly check-in",
+    "body": "Let’s do our usual weekly check-in tomorrow afternoon.",
+    "days_ago": 1,
+    "labels": ["INBOX"]
+  },
+
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "audit@company.com",
+    "subject": "Internal audit request",
+    "body": "Please provide access to the billing logs for last quarter.",
+    "days_ago": 12,
+    "labels": ["INBOX"]
+  },
+
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "notifications@company.com",
+    "subject": "New comment on your document",
+    "body": "Someone left a new comment on the architecture document.",
+    "days_ago": 0,
+    "labels": ["INBOX", "UNREAD"]
+  },
+
+  {
+    "to": "legal@company.com",
+    "from": "cloudprojecttest4153@gmail.com",
+    "subject": "Re: Contract redlines",
+    "body": "I’ve reviewed and approved the latest redline changes.",
+    "days_ago": 7,
+    "labels": ["SENT"]
+  },
+
+  {
+    "to": "cloudprojecttest4153@gmail.com",
+    "from": "samira@company.com",
+    "subject": "Reminder: Accessibility review",
+    "body": "Just reminding you about today’s accessibility review session at 3 PM.",
+    "days_ago": 0,
+    "labels": ["INBOX", "UNREAD"]
+  }
+]
+

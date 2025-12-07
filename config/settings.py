@@ -26,6 +26,7 @@ class Settings(BaseSettings):
         ]
     GOOGLE_CLIENT_ID: str
     GOOGLE_CLIENT_SECRET: str
+    GOOGLE_TOKEN_URI: str = "https://oauth2.googleapis.com/token"
 
     # Config to read from .env file if available
     model_config = SettingsConfigDict(

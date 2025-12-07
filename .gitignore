@@ -4,3 +4,4 @@ __pycache__
 .idea
 .env*
 client_secret_google.json
+test_gmail_auth.json
