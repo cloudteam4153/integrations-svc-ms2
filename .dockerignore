@@ -1,11 +1,14 @@
 .git
-__pycache__/
+__pycache__
 .pytest_cache/
 .venv
 .DS_Store
+.env
+node_modules
 *.pyc
 *.pyo
 *.pyd
 *.log
 alembic/versions/
 config/client_secret_google.json
+/scripts/test_gmail_auth.json

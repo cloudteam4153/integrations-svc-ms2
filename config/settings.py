@@ -16,18 +16,17 @@ class Settings(BaseSettings):
     TOKEN_ENCRYPTION_KEY: str
 
     # Google
-    GOOGLE_CLIENT_SECRETS_FILE: str = "config/client_secret_google.json"
-    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/oauth/callback/google"
-    GMAIL_OAUTH_SCOPES: list[str] = [
-            'https://www.googleapis.com/auth/userinfo.email',
-            'https://www.googleapis.com/auth/gmail.readonly',
-            'https://www.googleapis.com/auth/gmail.modify',
-            'openid'
-        ]
     GOOGLE_CLIENT_ID: str
     GOOGLE_CLIENT_SECRET: str
-    GOOGLE_TOKEN_URI: str = "https://oauth2.googleapis.com/token"
-
+    GOOGLE_AUTH_URI: str
+    GOOGLE_AUTH_PROVIDER_X509_CERT_URL: str
+    GOOGLE_TOKEN_URI: str
+    GOOGLE_REDIRECT_URIS: list[str]
+    GMAIL_OAUTH_SCOPES: list[str]
+    
+    GOOGLE_PROJECT_ID: str | None = None
+    GOOGLE_CLIENT_SECRETS_FILE: str | None = None
+    
     # Config to read from .env file if available
     model_config = SettingsConfigDict(
         env_file=".env", 

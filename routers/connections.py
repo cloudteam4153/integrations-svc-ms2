@@ -4,7 +4,7 @@ from sqlalchemy import select, and_, or_
 from uuid import UUID, uuid4
 from datetime import datetime, timedelta
 from typing import Optional, List
-from google_auth_oauthlib.flow import Flow
+from services.sync.gmail import build_google_flow, Flow
 
 from services.database import get_db
 from models.connection import (
@@ -37,7 +37,8 @@ router = APIRouter(
 # POST new Connection (starts OAuth flow to /oauth/callback/ starting with authorization_url
 # that the frontend must redirect to)
 @router.post("/", response_model=ConnectionInitiateResponse, status_code=201, name="create_connection")
-async def create_connection( 
+async def create_connection(
+    request: Request, 
     connection: ConnectionInitiateRequest,
     db: AsyncSession = Depends(get_db),
     current_user: UserRead = Depends(validate_session)
@@ -54,12 +55,10 @@ async def create_connection(
     db.add(conn)
     await db.flush()
 
-    # Build Auth URL
-    flow = Flow.from_client_secrets_file(
-        settings.GOOGLE_CLIENT_SECRETS_FILE,
-        scopes=settings.GMAIL_OAUTH_SCOPES
-    )
-    flow.redirect_uri = settings.GOOGLE_REDIRECT_URI
+    current_redirect_uri = str(request.url_for("google_oauth_callback"))
+    if current_redirect_uri not in settings.GOOGLE_REDIRECT_URIS:
+        raise ValueError(f"Redirect URI not allowed: {current_redirect_uri}")
+    flow: Flow = build_google_flow(current_redirect_uri)
     
     authorization_url, state = flow.authorization_url(
         access_type="offline",

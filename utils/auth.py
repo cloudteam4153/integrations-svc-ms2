@@ -9,7 +9,11 @@ from datetime import datetime
 from models.user import User, UserRead
 
 
+# Cloud project test user UUID (USE THIS ONE)
 test_user_UUID = "3aab3fba-9f4d-48ee-bee5-c1df257c33cc"
+
+# Sanjay test user UUID
+# test_user_UUID = "0283b6a0-f665-4041-bb21-75e5556835fc"
 
 
 async def validate_session(

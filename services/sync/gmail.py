@@ -2,12 +2,14 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Any
 from uuid import UUID
 from fastapi.exceptions import HTTPException
+from fastapi import Request
 from datetime import datetime, timezone
 import base64
 
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
-from google.auth.transport.requests import Request
+from google.auth.transport.requests import Request as GoogleRequest
+from google_auth_oauthlib.flow import Flow
 
 from security import token_cipher
 from config.settings import settings
@@ -19,6 +21,27 @@ from models.sync import SyncType
 # -----------------------------------------------------------------------------
 # Gmail Helper Functions
 # -----------------------------------------------------------------------------
+
+def build_google_flow(active_redirect_uri: str) -> Flow:
+    client_config = {
+        "web": {
+            "client_id": settings.GOOGLE_CLIENT_ID,
+            "project_id": settings.GOOGLE_PROJECT_ID,
+            "auth_uri": settings.GOOGLE_AUTH_URI,
+            "token_uri": settings.GOOGLE_TOKEN_URI,
+            "auth_provider_x509_cert_url": settings.GOOGLE_AUTH_PROVIDER_X509_CERT_URL,
+            "client_secret": settings.GOOGLE_CLIENT_SECRET,
+            "redirect_uris": settings.GOOGLE_REDIRECT_URIS,
+        }
+    }
+
+    flow = Flow.from_client_config(
+        client_config=client_config,
+        scopes=settings.GMAIL_OAUTH_SCOPES
+    )
+    flow.redirect_uri = active_redirect_uri
+
+    return flow
 
 def connection_to_creds(conn: Connection) -> Credentials:
     expiry = None
@@ -39,7 +62,7 @@ def connection_to_creds(conn: Connection) -> Credentials:
 
     if not creds.valid:
         if creds.expired and creds.refresh_token:
-            creds.refresh(Request())
+            creds.refresh(GoogleRequest())
         else:
             raise RuntimeError("Invalid Google credentials: cannot refresh")
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from fastapi.concurrency import run_in_threadpool
 from datetime import datetime
@@ -8,13 +8,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from services.database import get_db
 
-from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from google.auth.exceptions import GoogleAuthError
 from googleapiclient.discovery import build
 from google.auth.transport.requests import Request as GoogleRequest
 
 from services.sync.gmail import get_account_id
+from services.sync.gmail import build_google_flow, Flow
 from security import token_cipher
 from config.settings import settings
 
@@ -28,8 +28,9 @@ router = APIRouter(
 )
 
 # Google Callback GET Endpoint (defined as per Google API spec; internal only)
-@router.get("/google", status_code=200)
-async def oauth_callback(
+@router.get("/google", status_code=200, name="google_oauth_callback")
+async def google_oauth_callback(
+    request: Request,
     code: str = Query(...),
     state: str = Query(...),
     error: Optional[str] = Query(None),
@@ -60,12 +61,10 @@ async def oauth_callback(
     if connection is None:
         raise HTTPException(status_code=404, detail="Connection not found.")
 
-    flow: Flow = Flow.from_client_secrets_file(
-        settings.GOOGLE_CLIENT_SECRETS_FILE,
-        scopes=settings.GMAIL_OAUTH_SCOPES,
-        state=state
-    )
-    flow.redirect_uri = settings.GOOGLE_REDIRECT_URI
+    current_redirect_uri = str(request.url_for("google_oauth_callback"))
+    if current_redirect_uri not in settings.GOOGLE_REDIRECT_URIS:
+        raise ValueError(f"Redirect URI not allowed: {current_redirect_uri}")
+    flow: Flow = build_google_flow(current_redirect_uri)
 
     try:
         flow.fetch_token(code=code)

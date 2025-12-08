@@ -1,8 +1,12 @@
 services:
   web:
-    build: .
-    container_name: integrations-svc-ms2
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: integrations-svc-ms2-local
     ports:
       - "8000:8000"
     volumes:
       - .:/app
+    env_file:
+      - .env
