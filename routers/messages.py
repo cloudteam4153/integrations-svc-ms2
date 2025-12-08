@@ -62,7 +62,6 @@ async def list_messages(
     external_id: Optional[str] = Query(None, description="Filter by external message ID"),
     created_after: Optional[datetime] = Query(None, description="Filter messages created after this date"),
     created_before: Optional[datetime] = Query(None, description="Filter messages created before this date"),
-    has_raw: Optional[bool] = Query(None, description="Filter by whether message has raw content"),
     sort_by: str = Query("created_at", regex="^(created_at|internal_date|size_estimate)$", description="Sort field"),
     sort_order: str = Query("desc", regex="^(asc|desc)$", description="Sort order"),
     db: AsyncSession = Depends(get_db),
@@ -97,12 +96,6 @@ async def list_messages(
     
     if created_before:
         filters.append(Message.created_at <= created_before)
-    
-    if has_raw is not None:
-        if has_raw:
-            filters.append(Message.raw.isnot(None))
-        else:
-            filters.append(Message.raw.is_(None))
     
     if filters:
         query = query.where(and_(*filters))

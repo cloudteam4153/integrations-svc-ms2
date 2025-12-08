@@ -4,7 +4,7 @@ from typing import Optional, List
 
 from uuid import UUID, uuid4
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import String, DateTime, ForeignKey, Text, JSON, BigInteger
+from sqlalchemy import String, DateTime, ForeignKey, Text, JSON, BigInteger, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from services.database import Base
@@ -15,6 +15,9 @@ from models.hateoas import HATEOASLink
 # -----------------------------------------------------------------------------
 class Message(Base):
     __tablename__ = "messages"
+    __table_args__ = (
+        UniqueConstraint("user_id", "external_id", name="uq_user_external_message"),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     external_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -29,10 +32,17 @@ class Message(Base):
     thread_id: Mapped[str] = mapped_column(String(255), nullable=True, index=True)
     label_ids: Mapped[list[str]] = mapped_column(JSON, nullable=True)
     snippet: Mapped[str] = mapped_column(Text, nullable=True)
+
     history_id: Mapped[int] = mapped_column(BigInteger, nullable=True)
     internal_date: Mapped[int] = mapped_column(BigInteger, nullable=True)  # Unix timestamp in milliseconds
     size_estimate: Mapped[int] = mapped_column(BigInteger, nullable=True)
-    raw: Mapped[str] = mapped_column(Text, nullable=True)  # Base64 encoded raw message
+    
+    from_address: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    to_address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    cc_address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    subject: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    body: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
@@ -41,6 +51,14 @@ class Message(Base):
 # Pydantic Schemas
 # -----------------------------------------------------------------------------
 class MessageBase(BaseModel):
+    id: UUID = Field(
+        ..., 
+        description="Internal unique identifier for this message record"
+    )
+    user_id: UUID = Field(
+        ..., 
+        description="ID of the user who owns this message"
+    )   
     external_id: Optional[str] = Field(
         None, 
         description="External message ID from the email service (e.g., Gmail message ID)"
@@ -79,6 +97,25 @@ class MessageCreate(MessageBase):
         None, 
         description="Base64-encoded raw message content including headers and body"
     )
+    from_address: Optional[str] = Field(
+        None, 
+        description="Sender email address"
+    )
+    to_address: Optional[str] = Field(
+        None,
+        description="Recipient email addresses"
+    )
+    cc_address: Optional[str] = Field(
+        None, 
+        description="CC email addresses"
+    )
+    subject: Optional[str] = Field(
+        None, description="Email subject line"
+    )
+    body: Optional[str] = Field(
+        None, 
+        description="Decoded email message body"
+    )
 
 class MessageUpdate(BaseModel):
     label_ids: Optional[list[str]] = Field(
@@ -105,19 +142,45 @@ class MessageUpdate(BaseModel):
         None, 
         description="Updated base64-encoded raw message content"
     )
+    from_address: Optional[str] = Field(
+        None, 
+        description="Sender email address"
+    )
+    to_address: Optional[str] = Field(
+        None,
+        description="Recipient email addresses"
+    )
+    cc_address: Optional[str] = Field(
+        None, 
+        description="CC email addresses"
+    )
+    subject: Optional[str] = Field(
+        None, description="Email subject line"
+    )
+    body: Optional[str] = Field(
+        None, 
+        description="Decoded email message body"
+    )
 
 class MessageRead(MessageBase):
-    id: UUID = Field(
-        ..., 
-        description="Internal unique identifier for this message record"
-    )
-    user_id: UUID = Field(
-        ..., 
-        description="ID of the user who owns this message"
-    )
-    raw: Optional[str] = Field(
+    from_address: Optional[str] = Field(
         None, 
-        description="Base64-encoded raw message content (may be excluded for performance)"
+        description="Sender email address"
+    )
+    to_address: Optional[str] = Field(
+        None,
+        description="Recipient email addresses"
+    )
+    cc_address: Optional[str] = Field(
+        None, 
+        description="CC email addresses"
+    )
+    subject: Optional[str] = Field(
+        None, description="Email subject line"
+    )
+    body: Optional[str] = Field(
+        None, 
+        description="Decoded email message body"
     )
     created_at: datetime = Field(
         ..., 

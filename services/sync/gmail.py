@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Any
 from uuid import UUID
 from fastapi.exceptions import HTTPException
 from datetime import datetime, timezone
+import base64
 
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
@@ -43,6 +44,28 @@ def connection_to_creds(conn: Connection) -> Credentials:
             raise RuntimeError("Invalid Google credentials: cannot refresh")
 
     return creds
+
+
+def get_header(headers, name):
+    for h in headers:
+        if h["name"].lower() == name.lower():
+            return h["value"]
+    return None
+
+
+def extract_body(payload):
+    if payload.get("body", {}).get("data"):
+        return base64.urlsafe_b64decode(payload["body"]["data"]).decode()
+
+    for part in payload.get("parts", []):
+        if part["mimeType"] in ("text/plain", "text/html"):
+            if part["body"].get("data"):
+                return base64.urlsafe_b64decode(
+                    part["body"]["data"]
+                ).decode()
+
+    return None
+
 
 
 # -----------------------------------------------------------------------------
@@ -189,20 +212,39 @@ def gmail_sync_messages(
             new_history_id = res.get("historyId", new_history_id)
 
     # get full messages
-    full_messages = []
+    parsed_messages = []
     for m in messages:
         full = service.users().messages().get(
             userId="me",
             id=m["id"],
             format="full"
         ).execute()
-        full_messages.append(full)
 
-    # 6. Return ONLY data + stats (async layer writes to DB)
+        headers = full["payload"]["headers"]
+
+        parsed = {
+            "id": full.get("id"),
+            "threadId": full.get("threadId"),
+            "labelIds": full.get("labelIds"),
+            "snippet": full.get("snippet"),
+            "historyId": full.get("historyId"),
+            "internalDate": full.get("internalDate"),
+            "sizeEstimate": full.get("sizeEstimate"),
+
+            "from": get_header(headers, "From"),
+            "to": get_header(headers, "To"),
+            "cc": get_header(headers, "Cc"),
+            "subject": get_header(headers, "Subject"),
+            "body": extract_body(full["payload"]),
+        }
+
+        parsed_messages.append(parsed)
+
+    
     return {
-        "messages": full_messages,
-        "messages_synced": len(full_messages),
-        "messages_new": len(full_messages),
+        "messages": parsed_messages,
+        "messages_synced": len(parsed_messages),
+        "messages_new": len(parsed_messages),
         "messages_updated": 0,
         "last_history_id": new_history_id,
     }

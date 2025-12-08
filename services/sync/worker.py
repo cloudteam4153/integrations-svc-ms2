@@ -3,6 +3,8 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy.future import select
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import text
 from services.database import AsyncSessionLocal
 from services.sync.gmail import gmail_sync_messages, connection_to_creds
 
@@ -58,23 +60,56 @@ async def process_sync_job(
             total = result["messages_synced"]
 
             processed = 0
-
+            new_count = 0
+            updated_count = 0
 
             for msg in messages:
-                new_msg = Message(
+                stmt = insert(Message).values(
                     external_id=msg.get("id"),
                     user_id=sync_job.user_id,
+
                     thread_id=msg.get("threadId"),
                     label_ids=msg.get("labelIds"),
                     snippet=msg.get("snippet"),
                     history_id=int(msg.get("historyId")) if msg.get("historyId") else None,
                     internal_date=int(msg.get("internalDate")) if msg.get("internalDate") else None,
                     size_estimate=msg.get("sizeEstimate"),
-                    raw=msg.get("raw")
-                )
 
-                db.add(new_msg)
+                    from_address=msg.get("from"),
+                    to_address=msg.get("to"),
+                    cc_address=msg.get("cc"),
+                    subject=msg.get("subject"),
+                    body=msg.get("body"),
+                ).on_conflict_do_update(
+                    index_elements=["user_id", "external_id"],
+                    set_={
+                        "thread_id": msg.get("threadId"),
+                        "label_ids": msg.get("labelIds"),
+                        "snippet": msg.get("snippet"),
+                        "history_id": int(msg.get("historyId")) if msg.get("historyId") else None,
+                        "internal_date": int(msg.get("internalDate")) if msg.get("internalDate") else None,
+                        "size_estimate": msg.get("sizeEstimate"),
+
+                        "from_address": msg.get("from"),
+                        "to_address": msg.get("to"),
+                        "cc_address": msg.get("cc"),
+                        "subject": msg.get("subject"),
+                        "body": msg.get("body"),
+
+                        "updated_at": datetime.now(),
+                    },
+                ).returning(text("xmax = 0 AS inserted"))
+
+                result_row = await db.execute(stmt)
+                was_inserted = result_row.scalar_one()
+
+                if was_inserted:
+                    new_count += 1
+                else:
+                    updated_count += 1
+
                 processed += 1
+
                 sync_job.progress_percentage = int((processed / total) * 100)
                 sync_job.current_operation = f"Ingested {processed}/{total} messages"
 
@@ -83,9 +118,9 @@ async def process_sync_job(
 
             await db.commit()
 
-            sync_job.messages_synced = result["messages_synced"]
-            sync_job.messages_new = result["messages_new"]
-            sync_job.messages_updated = result["messages_updated"]
+            sync_job.messages_synced = total
+            sync_job.messages_new = new_count
+            sync_job.messages_updated = updated_count
             sync_job.last_history_id = result["last_history_id"]
 
             conn_db = await db.get(Connection, conn.id)
