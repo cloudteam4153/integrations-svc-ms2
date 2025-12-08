@@ -57,7 +57,7 @@ async def create_connection(
 
     current_redirect_uri = str(request.url_for("google_oauth_callback"))
     if current_redirect_uri not in settings.GOOGLE_REDIRECT_URIS:
-        raise ValueError(f"Redirect URI not allowed: {current_redirect_uri}")
+        raise HTTPException(status_code=500, detail=f"Redirect URI not allowed: {current_redirect_uri}")
     flow: Flow = build_google_flow(current_redirect_uri)
     
     authorization_url, state = flow.authorization_url(
