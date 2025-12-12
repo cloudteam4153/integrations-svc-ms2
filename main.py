@@ -2,17 +2,20 @@ from __future__ import annotations
 
 import os
 import socket
-from datetime import datetime
+from datetime import datetime, timezone
 
-from typing import Dict, List
-from uuid import UUID
-
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Query, Path
 from typing import Optional
 
 from models.health import Health
-from routers import connections, oauth, users, messages, syncs
+from routers import (
+    connections, 
+    messages, 
+    syncs
+)
+from config.settings import settings
 
 from services.database import get_db, init_db
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,6 +32,14 @@ app = FastAPI(
     version="0.1.0",
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://35.239.94.117:8000", "https://momoinbox.mooo.com"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # -----------------------------------------------------------------------------
 # Health endpoints
 # -----------------------------------------------------------------------------
@@ -37,7 +48,7 @@ def make_health(echo: Optional[str], path_echo: Optional[str]=None) -> Health:
     return Health(
         status=200,
         status_message="OK",
-        timestamp=datetime.utcnow().isoformat() + "Z",
+        timestamp=datetime.now(timezone.utc).isoformat() + "Z",
         ip_address=socket.gethostbyname(socket.gethostname()),
         echo=echo,
         path_echo=path_echo
@@ -62,13 +73,6 @@ def get_health_with_path(
 app.include_router(router=connections.router)
 app.include_router(router=messages.router)
 app.include_router(router=syncs.router)
-
-# -----------------------------------------------------------------------------
-# Routers to internal service resources
-# -----------------------------------------------------------------------------
-
-app.include_router(router=oauth.router) # Only for OAuth flows
-app.include_router(router=users.router) # User management for internal microservices use
 
 
 # -----------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum as PyEnum
 from typing import Optional, List
 
@@ -41,7 +41,6 @@ class Sync(Base):
         index=True
     )
     user_id: Mapped[UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), 
         nullable=False, 
         index=True
     )
@@ -60,10 +59,23 @@ class Sync(Base):
     )
 
     # Timing information
-    time_start: Mapped[datetime] = mapped_column(DateTime, nullable=True)
-    time_end: Mapped[datetime] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
+    time_start: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), 
+        nullable=True
+    )
+    time_end: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), 
+        nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc)
+    )
 
     # Sync results and metadata
     messages_synced: Mapped[int] = mapped_column(Integer, default=0)
@@ -93,6 +105,8 @@ class SyncBase(BaseModel):
         description="Current status of the sync job"
     )
 
+    model_config = ConfigDict(from_attributes=True)
+
 class SyncStatusUpdate(SyncBase):
     id: UUID = Field(
         ...,
@@ -121,11 +135,26 @@ class SyncStatusUpdate(SyncBase):
         description="Description of what the sync is currently doing"
     )
 
+    model_config = ConfigDict(from_attributes=True)
+
+class SyncListResponse(BaseModel):
+    data: List[SyncRead]
+    page: int
+    size: int
+    total_pages: int
+    has_next: bool
+
 class SyncCreate(BaseModel):
+    user_id: UUID = Field(
+        ...,
+        description="User ID for sync job"
+    )
     sync_type: SyncType = Field(
         SyncType.INCREMENTAL,
         description="Type of sync operation (full, incremental, or manual)"
     )
+
+    model_config = ConfigDict(from_attributes=True)
 
 class SyncUpdate(BaseModel):
     status: Optional[SyncStatus] = Field(
@@ -182,6 +211,8 @@ class SyncUpdate(BaseModel):
         None,
         description="Description of what the sync is currently doing"
     )
+
+    model_config = ConfigDict(from_attributes=True)
 
 class SyncRead(SyncBase):
     id: UUID = Field(

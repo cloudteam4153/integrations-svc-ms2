@@ -1,5 +1,5 @@
 from __future__ import annotations
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 
 from uuid import UUID, uuid4
@@ -22,7 +22,6 @@ class Message(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     external_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     user_id: Mapped[UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), 
         nullable=False, 
         index=True
     )
@@ -44,17 +43,21 @@ class Message(Base):
     subject: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     body: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc)
+    )
 
 # -----------------------------------------------------------------------------
 # Pydantic Schemas
 # -----------------------------------------------------------------------------
 class MessageBase(BaseModel):
-    id: UUID = Field(
-        ..., 
-        description="Internal unique identifier for this message record"
-    )
     user_id: UUID = Field(
         ..., 
         description="ID of the user who owns this message"
@@ -87,100 +90,89 @@ class MessageBase(BaseModel):
         None, 
         description="Estimated size of the message in bytes"
     )
+    from_address: Optional[str] = Field(
+        None, 
+        description="Sender email address"
+    )
+    to_address: Optional[str] = Field(
+        None,
+        description="Recipient email addresses"
+    )
+    cc_address: Optional[str] = Field(
+        None, 
+        description="CC email addresses"
+    )
+    subject: Optional[str] = Field(
+        None, description="Email subject line"
+    )
+    body: Optional[str] = Field(
+        None, 
+        description="Decoded email message body"
+    )
 
-class MessageCreate(MessageBase):
+    model_config = ConfigDict(from_attributes=True)
+
+class MessageCreate(BaseModel):
     user_id: UUID = Field(
         ..., 
         description="ID of the user who owns this message"
+    )
+    connection_id: UUID = Field(
+        ..., 
+        description="Connection ID to use for sending (must belong to the user)"
+    )
+    to_address: str = Field(
+        ..., 
+        description="Recipient email addresses"
+    )
+    from_address: str = Field(
+        ..., 
+        description="Sender email address"
+    )
+    cc_address: Optional[str] = Field(
+        None, 
+        description="CC email addresses"
+    )
+    subject: Optional[str] = Field(
+        None, description="Email subject line"
+    )
+    body: Optional[str] = Field(
+        None, 
+        description="Decoded email message body"
+    )
+    thread_id: Optional[str] = Field(
+        None, 
+        description="Thread to attach the message to"
+    )
+    label_ids: Optional[list[str]] = Field(
+        None, 
+        description="Labels to apply when sending the message"
     )
     raw: Optional[str] = Field(
         None, 
         description="Base64-encoded raw message content including headers and body"
     )
-    from_address: Optional[str] = Field(
-        None, 
-        description="Sender email address"
-    )
-    to_address: Optional[str] = Field(
-        None,
-        description="Recipient email addresses"
-    )
-    cc_address: Optional[str] = Field(
-        None, 
-        description="CC email addresses"
-    )
-    subject: Optional[str] = Field(
-        None, description="Email subject line"
-    )
-    body: Optional[str] = Field(
-        None, 
-        description="Decoded email message body"
-    )
+
+    model_config = ConfigDict(from_attributes=True)
 
 class MessageUpdate(BaseModel):
+    user_id: UUID = Field(
+        ..., 
+        description="ID of the user who owns this message"
+    )
+    connection_id: UUID = Field(
+        ..., 
+        description="Connection ID to use (Gmail)"
+    )
     label_ids: Optional[list[str]] = Field(
         None, 
-        description="Updated list of label IDs for this message"
-    )
-    snippet: Optional[str] = Field(
-        None, 
-        description="Updated message snippet/preview text"
-    )
-    history_id: Optional[int] = Field(
-        None, 
-        description="Updated history ID for sync tracking"
-    )
-    internal_date: Optional[int] = Field(
-        None, 
-        description="Updated message timestamp (Unix timestamp in milliseconds)"
-    )
-    size_estimate: Optional[int] = Field(
-        None, 
-        description="Updated size estimate in bytes"
-    )
-    raw: Optional[str] = Field(
-        None, 
-        description="Updated base64-encoded raw message content"
-    )
-    from_address: Optional[str] = Field(
-        None, 
-        description="Sender email address"
-    )
-    to_address: Optional[str] = Field(
-        None,
-        description="Recipient email addresses"
-    )
-    cc_address: Optional[str] = Field(
-        None, 
-        description="CC email addresses"
-    )
-    subject: Optional[str] = Field(
-        None, description="Email subject line"
-    )
-    body: Optional[str] = Field(
-        None, 
-        description="Decoded email message body"
+        description="Labels to apply when sending the message"
     )
 
 class MessageRead(MessageBase):
-    from_address: Optional[str] = Field(
-        None, 
-        description="Sender email address"
-    )
-    to_address: Optional[str] = Field(
-        None,
-        description="Recipient email addresses"
-    )
-    cc_address: Optional[str] = Field(
-        None, 
-        description="CC email addresses"
-    )
-    subject: Optional[str] = Field(
-        None, description="Email subject line"
-    )
-    body: Optional[str] = Field(
-        None, 
-        description="Decoded email message body"
+    id: UUID = Field(
+        ..., 
+        description="Internal unique identifier for this message record"
     )
     created_at: datetime = Field(
         ..., 

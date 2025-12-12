@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Any, Optional
 from fastapi import Request, Response, HTTPException
 from pydantic import BaseModel
+import json
 
 
 def generate_etag(data: Any) -> str:
@@ -17,7 +18,8 @@ def generate_etag(data: Any) -> str:
         content = f"{data.id}:{data.updated_at.isoformat()}"
     elif isinstance(data, BaseModel):
         # For Pydantic models, use the JSON representation
-        content = data.model_dump_json(sort_keys=True)
+        payload = data.model_dump(mode="json")
+        content = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     else:
         # Fallback to string representation
         content = str(data)

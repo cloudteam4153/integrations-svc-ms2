@@ -41,7 +41,14 @@ echo "Deploying to Cloud Run..."
 gcloud run deploy "${SERVICE}" \
   --image "${IMAGE}" \
   --region "${REGION}" \
-  --allow-unauthenticated
+  --allow-unauthenticated \
+  --set-secrets \
+JWT_SECRET_KEY=integrations-svc-ms2__JWT_SECRET_KEY:latest,\
+DATABASE_URL=integrations-svc-ms2__DATABASE_URL:latest,\
+TOKEN_ENCRYPTION_KEY=integrations-svc-ms2__TOKEN_ENCRYPTION_KEY:latest,\
+GOOGLE_CLIENT_SECRET=integrations-svc-ms2__GOOGLE_CLIENT_SECRET:latest,\
+GOOGLE_REDIRECT_URIS=integrations-svc-ms2__GOOGLE_REDIRECT_URIS:latest
+
 
 # -----------------------------
 # SHOW RECENT LOGS

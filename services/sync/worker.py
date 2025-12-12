@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy.future import select
@@ -39,7 +39,7 @@ async def process_sync_job(
         try:
             
             sync_job.status = SyncStatus.RUNNING
-            sync_job.time_start = datetime.now()
+            sync_job.time_start = datetime.now(timezone.utc)
             sync_job.progress_percentage = 0
             sync_job.current_operation = "Starting sync"
             await db.commit()
@@ -96,7 +96,7 @@ async def process_sync_job(
                         "subject": msg.get("subject"),
                         "body": msg.get("body"),
 
-                        "updated_at": datetime.now(),
+                        "updated_at": datetime.now(timezone.utc),
                     },
                 ).returning(text("xmax = 0 AS inserted"))
 
@@ -131,13 +131,13 @@ async def process_sync_job(
             sync_job.progress_percentage = 100
             sync_job.current_operation = "Completed"
             sync_job.status = SyncStatus.COMPLETED
-            sync_job.time_end = datetime.now()
+            sync_job.time_end = datetime.now(timezone.utc)
 
             await db.commit()
 
         except Exception as e:
             sync_job.status = SyncStatus.FAILED
-            sync_job.time_end = datetime.now()
+            sync_job.time_end = datetime.now(timezone.utc)
             sync_job.error_message = str(e)
             sync_job.retry_count += 1
             sync_job.current_operation = "Failed"

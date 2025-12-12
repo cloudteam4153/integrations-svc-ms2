@@ -1,6 +1,6 @@
 from __future__ import annotations
 from enum import Enum as PyEnum
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 from uuid import UUID, uuid4
 from typing import Optional
 
@@ -26,12 +26,21 @@ class OAuth(Base):
     """
     __tablename__ = "oauth_states"
     
-    state_token: Mapped[str] = mapped_column(String(64), primary_key=True)
-    connection_id: Mapped[UUID] = mapped_column(ForeignKey("connections.id", ondelete="CASCADE"), nullable=False)
-    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    state_token: Mapped[str] = mapped_column(String(64), primary_key=True, index=True)
+    redirect_url: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
+    # connection_id: Mapped[UUID] = mapped_column(ForeignKey("connections.id", ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, nullable=False)
-    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False
+    )
     
     provider: Mapped[OAuthProvider] = mapped_column(SQLEnum(OAuthProvider), nullable=False)
     
@@ -50,10 +59,6 @@ class OAuthStateCreate(BaseModel):
         description="Unique CSRF token to prevent OAuth attacks",
         min_length=16,
         max_length=64
-    )
-    connection_id: UUID = Field(
-        ...,
-        description="ID of the connection this OAuth state is for"
     )
     user_id: UUID = Field(
         ...,
@@ -74,12 +79,8 @@ class OAuthStateRead(BaseModel):
         ...,
         description="Unique CSRF token used for OAuth verification"
     )
-    connection_id: UUID = Field(
-        ...,
-        description="ID of the associated connection"
-    )
-    user_id: UUID = Field(
-        ...,
+    user_id: Optional[UUID] = Field(
+        None,
         description="ID of the user who initiated this OAuth flow"
     )
     provider: OAuthProvider = Field(
@@ -96,3 +97,9 @@ class OAuthStateRead(BaseModel):
     )
     
     model_config = ConfigDict(from_attributes=True)
+
+class OAuthRedirectURL(BaseModel):
+    url: str = Field(
+        ...,
+        description="OAuthURL to redirect user to OAuth provider for sign in."
+    )

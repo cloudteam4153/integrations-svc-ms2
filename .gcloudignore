@@ -1,0 +1,7 @@
+.git
+.env
+test_gmail_auth.json
+.idea
+.vscode
+.venv
+__pycache__

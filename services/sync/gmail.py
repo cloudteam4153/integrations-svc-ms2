@@ -2,19 +2,22 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Any
 from uuid import UUID
 from fastapi.exceptions import HTTPException
-from fastapi import Request
-from datetime import datetime, timezone
+from fastapi import Request, status
+from datetime import timezone
 import base64
+from email.mime.text import MIMEText
+from email.message import EmailMessage
 
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request as GoogleRequest
 from google_auth_oauthlib.flow import Flow
+from googleapiclient.errors import HttpError
 
 from security import token_cipher
 from config.settings import settings
 
-from models.connection import Connection
+from models.connection import Connection, ConnectionStatus
 from models.message import MessageCreate, MessageUpdate
 from models.sync import SyncType
 
@@ -22,7 +25,7 @@ from models.sync import SyncType
 # Gmail Helper Functions
 # -----------------------------------------------------------------------------
 
-def build_google_flow(active_redirect_uri: str) -> Flow:
+def build_google_flow(active_redirect_uri: str, gmail_scopes: bool = False) -> Flow:
     client_config = {
         "web": {
             "client_id": settings.GOOGLE_CLIENT_ID,
@@ -35,19 +38,21 @@ def build_google_flow(active_redirect_uri: str) -> Flow:
         }
     }
 
+    all_scopes = []
+    all_scopes.extend(settings.GOOGLE_LOGIN_SCOPES)
+    if gmail_scopes: all_scopes.extend(settings.GMAIL_OAUTH_SCOPES)
+
     flow = Flow.from_client_config(
         client_config=client_config,
-        scopes=settings.GMAIL_OAUTH_SCOPES
+        scopes=all_scopes
     )
     flow.redirect_uri = active_redirect_uri
 
     return flow
 
-def connection_to_creds(conn: Connection) -> Credentials:
-    expiry = None
-    if conn.access_token_expiry:
-        expiry = conn.access_token_expiry.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
+def connection_to_creds(conn: Connection) -> Credentials:
+   
     token_row = {
         "token": token_cipher.decrypt(conn.access_token),
         "refresh_token": token_cipher.decrypt(conn.refresh_token),
@@ -55,8 +60,17 @@ def connection_to_creds(conn: Connection) -> Credentials:
         "client_id": settings.GOOGLE_CLIENT_ID,
         "client_secret": settings.GOOGLE_CLIENT_SECRET,
         "scopes": conn.scopes,
-        "expiry": expiry,
     }
+    if conn.access_token_expiry:
+        expiry_dt = conn.access_token_expiry
+
+        # Ensure tz-aware and in UTC
+        if expiry_dt.tzinfo is None:
+            expiry_dt = expiry_dt.replace(tzinfo=timezone.utc)
+        else:
+            expiry_dt = expiry_dt.astimezone(timezone.utc)
+
+        token_row["expiry"] = expiry_dt.isoformat().replace("+00:00", "Z")
 
     creds: Credentials = Credentials.from_authorized_user_info(token_row)
 
@@ -110,73 +124,92 @@ def get_account_id(
         return None 
     
 
-async def gmail_create_message(
-    connection: Connection, 
-    message_data: MessageCreate
-):
-    """Send a new message via Gmail API"""
-    raise HTTPException(status_code=501, detail="Not Implemented: Gmail API Send message.")
-    pass
+def gmail_update_message(
+    gmail_connection: Connection,
+    external_message_id: str,
+    message_update: MessageUpdate,
+) -> dict[str, Any]:
+    """
+    Downstream blind executor.
+    Takes message_update.label_ids and makes Gmail match it exactly.
+    """
+
+    if message_update.label_ids:
+        desired_labels = message_update.label_ids
+
+    try:
+        creds = connection_to_creds(gmail_connection)
+        gmail = build("gmail", "v1", credentials=creds, cache_discovery=False)
+
+        # 1) Get current labels from Gmail
+        current_msg = gmail.users().messages().get(
+            userId="me",
+            id=external_message_id,
+            format="minimal",
+        ).execute()
+
+        current_labels = set(current_msg.get("labelIds", []))
+        desired_labels = set(desired_labels)
+
+        # 2) Compute delta (required by Gmail API)
+        add_ids = list(desired_labels - current_labels)
+        remove_ids = list(current_labels - desired_labels)
+
+        # 3) Apply delta
+        return gmail.users().messages().modify(
+            userId="me",
+            id=external_message_id,
+            body={
+                "addLabelIds": add_ids,
+                "removeLabelIds": remove_ids,
+            },
+        ).execute()
+
+    except HttpError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Gmail API error while modifying labels: {e}",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unexpected error while modifying labels: {e}",
+        )
 
 
-async def gmail_update_message(
+def gmail_delete_message(
     connection: Connection,
     external_message_id: str,
-    message_update: MessageUpdate
-):
+) -> bool:
     """
-    Update a message via Gmail API (labels, etc.).
+    Soft delete: move message to Trash via Gmail API.
     """
-    raise HTTPException(status_code=501, detail="Not Implemented: Gmail API Update message.")
-    pass
+    try:
+        creds = connection_to_creds(connection)
+        gmail = build("gmail", "v1", credentials=creds, cache_discovery=False)
 
+        gmail.users().messages().trash(
+            userId="me",
+            id=external_message_id,
+        ).execute()
 
-async def gmail_delete_message(
-    connection: Connection,
-    external_message_id: str
-):
-    """
-    Delete a message via Gmail API.
-    """
-    raise HTTPException(status_code=501, detail="Not Implemented: Gmail API Delete message.")
-    pass
+        return True
 
+    except HttpError as e:
+        # Idempotent behavior: already trashed / missing
+        if e.resp.status == 404:
+            return True
 
-async def gmail_bulk_delete_messages(
-    connection: Connection,
-    external_message_ids: List[str]
-):
-    """
-    Bulk delete messages via Gmail API.
-    """
-    raise HTTPException(status_code=501, detail="Not Implemented: Gmail API Bulk Delete messages.")
-    pass
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Gmail API error while trashing message: {e}",
+        )
 
-
-async def gmail_get_message(
-    connection: Connection,
-    external_message_id: str,
-    format: str = "full"
-):
-    """
-    Retrieve a specific message from Gmail API.
-    """
-    raise HTTPException(status_code=501, detail="Not Implemented: Gmail API Get message.")
-    pass
-
-
-async def gmail_list_messages(
-    connection: Connection,
-    query: Optional[str] = None,
-    label_ids: Optional[List[str]] = None,
-    max_results: int = 100,
-    page_token: Optional[str] = None
-):
-    """
-    List messages from Gmail API with optional filtering.
-    """
-    raise HTTPException(status_code=501, detail="Not Implemented: Gmail API List messages.")
-    pass
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unexpected error while trashing message: {e}",
+        )
 
 
 def gmail_sync_messages(
@@ -273,33 +306,32 @@ def gmail_sync_messages(
     }
 
 
-# -----------------------------------------------------------------------------
-# Connection Token Management
-# -----------------------------------------------------------------------------
+def gmail_create_message(
+    creds: Credentials, 
+    message_data: MessageCreate
+):
+    service = build("gmail", "v1", credentials=creds, cache_discovery=False)
 
-async def refresh_gmail_tokens(connection: Connection):
-    """
-    Refresh expired Gmail access tokens.
-    """
-    raise HTTPException(status_code=501, detail="Not Implemented: Gmail API Refresh Tokens.")
-    pass
+    def build_rfc5322_message(message_data) -> str:
+        msg = EmailMessage()
+        msg["To"] = message_data.to_address
+        msg["From"] = message_data.from_address
+        if getattr(message_data, "cc_address", None):
+            msg["Cc"] = message_data.cc_address
+        msg["Subject"] = message_data.subject or ""
 
+        # Body (plain text). If you want HTML: msg.add_alternative(message_data.body, subtype="html")
+        msg.set_content(message_data.body or "")
 
-async def validate_gmail_connection(connection: Connection):
-    """
-    Validate that a Gmail connection is still active and has valid tokens.
-    """
-    raise HTTPException(status_code=501, detail="Not Implemented: Gmail API validate connection.")
-    pass
+        raw_bytes = msg.as_bytes()
+        return base64.urlsafe_b64encode(raw_bytes).decode("utf-8")
 
+    raw = build_rfc5322_message(message_data)
 
-# -----------------------------------------------------------------------------
-# Helper Functions
-# -----------------------------------------------------------------------------
+    # Send from authenticated user ("me")
+    resp = service.users().messages().send(
+        userId="me",
+        body={"raw": raw},
+    ).execute()
 
-def build_gmail_client(access_token: str):
-    """
-    Build Gmail API client with access token.
-    """
-    raise HTTPException(status_code=501, detail="Not Implemented: Gmail API build client.")
-    pass
+    return resp
